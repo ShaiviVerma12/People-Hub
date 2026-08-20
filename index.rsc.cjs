@@ -1,4 +1,3 @@
-"use client";
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const require_utils = require("./utils.cjs");
 const require_awaited = require("./awaited.cjs");
