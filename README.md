@@ -1,3 +1,4 @@
-# @floating-ui/react-dom
+# @floating-ui/utils
 
-This is the library to use Floating UI with React DOM.
+Utility functions shared across Floating UI packages. You may use these
+functions in your own projects, but are subject to breaking changes.
