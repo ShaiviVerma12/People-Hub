@@ -1,365 +1,147 @@
-"use client";
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
-// src/popper.tsx
+// src/slot.tsx
 import * as React from "react";
-import {
-  useFloating,
-  autoUpdate,
-  offset,
-  shift,
-  limitShift,
-  hide,
-  arrow as floatingUIarrow,
-  flip,
-  size
-} from "@floating-ui/react-dom";
-import * as ArrowPrimitive from "@radix-ui/react-arrow";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { createContextScope } from "@radix-ui/react-context";
-import { Primitive } from "@radix-ui/react-primitive";
-import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
-import { useLayoutEffect } from "@radix-ui/react-use-layout-effect";
-import { useSize } from "@radix-ui/react-use-size";
-import { jsx } from "react/jsx-runtime";
-var SIDE_OPTIONS = ["top", "right", "bottom", "left"];
-var ALIGN_OPTIONS = ["start", "center", "end"];
-var POPPER_NAME = "Popper";
-var [createPopperContext, createPopperScope] = createContextScope(POPPER_NAME);
-var [PopperProvider, usePopperContext] = createPopperContext(POPPER_NAME);
-var Popper = /* @__PURE__ */ __name((props) => {
-  const { __scopePopper, children } = props;
-  const [anchor, setAnchor] = React.useState(null);
-  const [placementState, setPlacementState] = React.useState(void 0);
-  return /* @__PURE__ */ jsx(
-    PopperProvider,
-    {
-      scope: __scopePopper,
-      anchor,
-      onAnchorChange: setAnchor,
-      placementState,
-      setPlacementState,
-      children
+// @__NO_SIDE_EFFECTS__
+function createSlot(ownerName) {
+  const Slot2 = React.forwardRef((props, forwardedRef) => {
+    let { children, ...slotProps } = props;
+    let slottableElement = null;
+    let hasSlottable = false;
+    const newChildren = [];
+    if (isLazyComponent(children) && typeof use === "function") {
+      children = use(children._payload);
     }
-  );
-}, "Popper");
-var ANCHOR_NAME = "PopperAnchor";
-var PopperAnchor = /* @__PURE__ */ React.forwardRef(
-  /* @__PURE__ */ __name(function PopperAnchor2(props, forwardedRef) {
-    const { __scopePopper, virtualRef, ...anchorProps } = props;
-    const context = usePopperContext(ANCHOR_NAME, __scopePopper);
-    const ref = React.useRef(null);
-    const onAnchorChange = context.onAnchorChange;
-    const callbackRef = React.useCallback(
-      (node) => {
-        ref.current = node;
-        if (node) {
-          onAnchorChange(node);
+    React.Children.forEach(children, (maybeSlottable) => {
+      if (isSlottable(maybeSlottable)) {
+        hasSlottable = true;
+        const slottable = maybeSlottable;
+        let child = "child" in slottable.props ? slottable.props.child : slottable.props.children;
+        if (isLazyComponent(child) && typeof use === "function") {
+          child = use(child._payload);
         }
-      },
-      [onAnchorChange]
-    );
-    const composedRefs = useComposedRefs(forwardedRef, callbackRef);
-    const anchorRef = React.useRef(null);
-    React.useEffect(() => {
-      if (!virtualRef) {
-        return;
-      }
-      const previousAnchor = anchorRef.current;
-      anchorRef.current = virtualRef.current;
-      if (previousAnchor !== anchorRef.current) {
-        onAnchorChange(anchorRef.current);
+        slottableElement = getSlottableElementFromSlottable(slottable, child);
+        newChildren.push(slottableElement?.props?.children);
+      } else {
+        newChildren.push(maybeSlottable);
       }
     });
-    const sideAndAlign = context.placementState && getSideAndAlignFromPlacement(context.placementState);
-    const placedSide = sideAndAlign?.[0];
-    const placedAlign = sideAndAlign?.[1];
-    return virtualRef ? null : /* @__PURE__ */ jsx(
-      Primitive.div,
-      {
-        "data-radix-popper-side": placedSide,
-        "data-radix-popper-align": placedAlign,
-        ...anchorProps,
-        ref: composedRefs
+    if (slottableElement) {
+      slottableElement = React.cloneElement(slottableElement, void 0, newChildren);
+    } else if (
+      // A `Slottable` was found but it didn't resolve to a single element (e.g.
+      // it wrapped multiple elements, text, or a render-prop `child` that
+      // wasn't an element). Don't fall back to treating the `Slottable` wrapper
+      // itself as the slot target — throw a descriptive error below instead.
+      !hasSlottable && React.Children.count(children) === 1 && React.isValidElement(children)
+    ) {
+      slottableElement = children;
+    }
+    const slottableElementRef = slottableElement ? getElementRef(slottableElement) : void 0;
+    const composedRef = useComposedRefs(forwardedRef, slottableElementRef);
+    if (!slottableElement) {
+      if (children || children === 0) {
+        throw new Error(
+          hasSlottable ? createSlottableError(ownerName) : createSlotError(ownerName)
+        );
       }
-    );
-  }, "PopperAnchor")
-);
-var CONTENT_NAME = "PopperContent";
-var [PopperContentProvider, useContentContext] = createPopperContext(CONTENT_NAME);
-var PopperContent = /* @__PURE__ */ React.forwardRef(
-  /* @__PURE__ */ __name(function PopperContent2(props, forwardedRef) {
-    const {
-      __scopePopper,
-      side = "bottom",
-      sideOffset = 0,
-      align = "center",
-      alignOffset = 0,
-      arrowPadding = 0,
-      avoidCollisions = true,
-      collisionBoundary = [],
-      collisionPadding: collisionPaddingProp = 0,
-      sticky = "partial",
-      hideWhenDetached = false,
-      updatePositionStrategy = "optimized",
-      onPlaced,
-      ...contentProps
-    } = props;
-    const context = usePopperContext(CONTENT_NAME, __scopePopper);
-    const [content, setContent] = React.useState(null);
-    const composedRefs = useComposedRefs(forwardedRef, setContent);
-    const [arrow, setArrow] = React.useState(null);
-    const arrowSize = useSize(arrow);
-    const arrowWidth = arrowSize?.width ?? 0;
-    const arrowHeight = arrowSize?.height ?? 0;
-    const desiredPlacement = side + (align !== "center" ? "-" + align : "");
-    const collisionPadding = typeof collisionPaddingProp === "number" ? collisionPaddingProp : { top: 0, right: 0, bottom: 0, left: 0, ...collisionPaddingProp };
-    const boundary = Array.isArray(collisionBoundary) ? collisionBoundary : [collisionBoundary];
-    const hasExplicitBoundaries = boundary.length > 0;
-    const detectOverflowOptions = {
-      padding: collisionPadding,
-      boundary: boundary.filter(isNotNull),
-      // with `strategy: 'fixed'`, this is the only way to get it to respect boundaries
-      altBoundary: hasExplicitBoundaries
-    };
-    const { refs, floatingStyles, placement, isPositioned, middlewareData } = useFloating({
-      // default to `fixed` strategy so users don't have to pick and we also avoid focus scroll issues
-      strategy: "fixed",
-      placement: desiredPlacement,
-      whileElementsMounted: /* @__PURE__ */ __name((...args) => {
-        const cleanup = autoUpdate(...args, {
-          animationFrame: updatePositionStrategy === "always"
-        });
-        return cleanup;
-      }, "whileElementsMounted"),
-      elements: {
-        reference: context.anchor
-      },
-      middleware: [
-        offset({ mainAxis: sideOffset + arrowHeight, alignmentAxis: alignOffset }),
-        avoidCollisions && shift({
-          mainAxis: true,
-          crossAxis: false,
-          limiter: sticky === "partial" ? limitShift() : void 0,
-          ...detectOverflowOptions
-        }),
-        avoidCollisions && flip({ ...detectOverflowOptions }),
-        size({
-          ...detectOverflowOptions,
-          apply: /* @__PURE__ */ __name(({ elements, rects, availableWidth, availableHeight }) => {
-            const { width: anchorWidth, height: anchorHeight } = rects.reference;
-            const contentStyle = elements.floating.style;
-            contentStyle.setProperty("--radix-popper-available-width", `${availableWidth}px`);
-            contentStyle.setProperty("--radix-popper-available-height", `${availableHeight}px`);
-            contentStyle.setProperty("--radix-popper-anchor-width", `${anchorWidth}px`);
-            contentStyle.setProperty("--radix-popper-anchor-height", `${anchorHeight}px`);
-          }, "apply")
-        }),
-        arrow && floatingUIarrow({ element: arrow, padding: arrowPadding }),
-        transformOrigin({ arrowWidth, arrowHeight }),
-        hideWhenDetached && hide({
-          strategy: "referenceHidden",
-          ...detectOverflowOptions,
-          // `hide` detects whether the anchor (reference) is clipped, so when
-          // no explicit `collisionBoundary` is set we fall back to Floating
-          // UI's default clipping ancestors (e.g. a scrollable menu). This
-          // lets an occluded submenu hide once its anchor scrolls out of view
-          // (#3237). The collision/size middlewares deliberately keep the
-          // viewport-based default to avoid clamping content rendered inside
-          // transformed or overflow-clipping portal containers.
-          boundary: hasExplicitBoundaries ? detectOverflowOptions.boundary : void 0
-        })
-      ]
-    });
-    const setPlacementState = context.setPlacementState;
-    useLayoutEffect(() => {
-      setPlacementState(placement);
-      return () => {
-        setPlacementState(void 0);
-      };
-    }, [placement, setPlacementState]);
-    const [placedSide, placedAlign] = getSideAndAlignFromPlacement(placement);
-    const handlePlaced = useCallbackRef(onPlaced);
-    useLayoutEffect(() => {
-      if (isPositioned) {
-        handlePlaced?.();
-      }
-    }, [isPositioned, handlePlaced]);
-    const arrowX = middlewareData.arrow?.x;
-    const arrowY = middlewareData.arrow?.y;
-    const cannotCenterArrow = middlewareData.arrow?.centerOffset !== 0;
-    const [contentZIndex, setContentZIndex] = React.useState();
-    useLayoutEffect(() => {
-      if (content) setContentZIndex(window.getComputedStyle(content).zIndex);
-    }, [content]);
-    return /* @__PURE__ */ jsx(
-      "div",
-      {
-        ref: refs.setFloating,
-        "data-radix-popper-content-wrapper": "",
-        style: {
-          ...floatingStyles,
-          transform: isPositioned ? floatingStyles.transform : "translate(0, -200%)",
-          // keep off the page when measuring
-          minWidth: "max-content",
-          zIndex: contentZIndex,
-          "--radix-popper-transform-origin": [
-            middlewareData.transformOrigin?.x,
-            middlewareData.transformOrigin?.y
-          ].join(" "),
-          // hide the content if using the hide middleware and should be hidden
-          // set visibility to hidden and disable pointer events so the UI behaves
-          // as if the PopperContent isn't there at all
-          ...middlewareData.hide?.referenceHidden && {
-            visibility: "hidden",
-            pointerEvents: "none"
-          }
-        },
-        dir: props.dir,
-        children: /* @__PURE__ */ jsx(
-          PopperContentProvider,
-          {
-            scope: __scopePopper,
-            placedSide,
-            placedAlign,
-            onArrowChange: setArrow,
-            arrowX,
-            arrowY,
-            shouldHideArrow: cannotCenterArrow,
-            children: /* @__PURE__ */ jsx(
-              Primitive.div,
-              {
-                "data-side": placedSide,
-                "data-align": placedAlign,
-                ...contentProps,
-                ref: composedRefs,
-                style: {
-                  ...contentProps.style,
-                  // if the PopperContent hasn't been placed yet (not all
-                  // measurements done) we prevent animations so that users'
-                  // animations don't kick in too early from the wrong sides.
-                  animation: !isPositioned ? "none" : contentProps.style?.animation
-                }
-              }
-            )
-          }
-        )
-      }
-    );
-  }, "PopperContent")
-);
-var ARROW_NAME = "PopperArrow";
-var OPPOSITE_SIDE = {
-  top: "bottom",
-  right: "left",
-  bottom: "top",
-  left: "right"
-};
-var PopperArrow = /* @__PURE__ */ React.forwardRef(
-  /* @__PURE__ */ __name(function PopperArrow2(props, forwardedRef) {
-    const { __scopePopper, ...arrowProps } = props;
-    const contentContext = useContentContext(ARROW_NAME, __scopePopper);
-    const baseSide = OPPOSITE_SIDE[contentContext.placedSide];
-    return (
-      // we have to use an extra wrapper because `ResizeObserver` (used by `useSize`)
-      // doesn't report size as we'd expect on SVG elements.
-      // it reports their bounding box which is effectively the largest path inside the SVG.
-      /* @__PURE__ */ jsx(
-        "span",
-        {
-          ref: contentContext.onArrowChange,
-          style: {
-            position: "absolute",
-            left: contentContext.arrowX,
-            top: contentContext.arrowY,
-            [baseSide]: 0,
-            transformOrigin: {
-              top: "",
-              right: "0 0",
-              bottom: "center 0",
-              left: "100% 0"
-            }[contentContext.placedSide],
-            transform: {
-              top: "translateY(100%)",
-              right: "translateY(50%) rotate(90deg) translateX(-50%)",
-              bottom: `rotate(180deg)`,
-              left: "translateY(50%) rotate(-90deg) translateX(50%)"
-            }[contentContext.placedSide],
-            visibility: contentContext.shouldHideArrow ? "hidden" : void 0
-          },
-          children: /* @__PURE__ */ jsx(
-            ArrowPrimitive.Root,
-            {
-              ...arrowProps,
-              ref: forwardedRef,
-              style: {
-                ...arrowProps.style,
-                // ensures the element can be measured correctly (mostly for if SVG)
-                display: "block"
-              }
-            }
-          )
-        }
-      )
-    );
-  }, "PopperArrow")
-);
-function isNotNull(value) {
-  return value !== null;
+      return children;
+    }
+    const mergedProps = mergeProps(slotProps, slottableElement.props ?? {});
+    if (slottableElement.type !== React.Fragment) {
+      mergedProps.ref = forwardedRef ? composedRef : slottableElementRef;
+    }
+    return React.cloneElement(slottableElement, mergedProps);
+  });
+  Slot2.displayName = `${ownerName}.Slot`;
+  return Slot2;
 }
-__name(isNotNull, "isNotNull");
-var transformOrigin = /* @__PURE__ */ __name((options) => ({
-  name: "transformOrigin",
-  options,
-  fn(data) {
-    const { placement, rects, middlewareData } = data;
-    const cannotCenterArrow = middlewareData.arrow?.centerOffset !== 0;
-    const isArrowHidden = cannotCenterArrow;
-    const arrowWidth = isArrowHidden ? 0 : options.arrowWidth;
-    const arrowHeight = isArrowHidden ? 0 : options.arrowHeight;
-    const [placedSide, placedAlign] = getSideAndAlignFromPlacement(placement);
-    const noArrowAlign = { start: "0%", center: "50%", end: "100%" }[placedAlign];
-    const arrowXCenter = (middlewareData.arrow?.x ?? 0) + arrowWidth / 2;
-    const arrowYCenter = (middlewareData.arrow?.y ?? 0) + arrowHeight / 2;
-    let x = "";
-    let y = "";
-    if (placedSide === "bottom") {
-      x = isArrowHidden ? noArrowAlign : `${arrowXCenter}px`;
-      y = `${-arrowHeight}px`;
-    } else if (placedSide === "top") {
-      x = isArrowHidden ? noArrowAlign : `${arrowXCenter}px`;
-      y = `${rects.floating.height + arrowHeight}px`;
-    } else if (placedSide === "right") {
-      x = `${-arrowHeight}px`;
-      y = isArrowHidden ? noArrowAlign : `${arrowYCenter}px`;
-    } else if (placedSide === "left") {
-      x = `${rects.floating.width + arrowHeight}px`;
-      y = isArrowHidden ? noArrowAlign : `${arrowYCenter}px`;
-    }
-    return { data: { x, y } };
+__name(createSlot, "createSlot");
+var Slot = /* @__PURE__ */ createSlot("Slot");
+var SLOTTABLE_IDENTIFIER = Symbol.for("radix.slottable");
+// @__NO_SIDE_EFFECTS__
+function createSlottable(ownerName) {
+  const Slottable2 = /* @__PURE__ */ __name((props) => "child" in props ? props.children(props.child) : props.children, "Slottable");
+  Slottable2.displayName = `${ownerName}.Slottable`;
+  Slottable2.__radixId = SLOTTABLE_IDENTIFIER;
+  return Slottable2;
+}
+__name(createSlottable, "createSlottable");
+var Slottable = /* @__PURE__ */ createSlottable("Slottable");
+var getSlottableElementFromSlottable = /* @__PURE__ */ __name((slottable, child) => {
+  if ("child" in slottable.props) {
+    const child2 = slottable.props.child;
+    if (!React.isValidElement(child2)) return null;
+    return React.cloneElement(child2, void 0, slottable.props.children(child2.props.children));
   }
-}), "transformOrigin");
-function getSideAndAlignFromPlacement(placement) {
-  const [side, align = "center"] = placement.split("-");
-  return [side, align];
+  return React.isValidElement(child) ? child : null;
+}, "getSlottableElementFromSlottable");
+function mergeProps(slotProps, childProps) {
+  const overrideProps = { ...childProps };
+  for (const propName in childProps) {
+    const slotPropValue = slotProps[propName];
+    const childPropValue = childProps[propName];
+    const isHandler = /^on[A-Z]/.test(propName);
+    if (isHandler) {
+      if (slotPropValue && childPropValue) {
+        overrideProps[propName] = (...args) => {
+          const result = childPropValue(...args);
+          slotPropValue(...args);
+          return result;
+        };
+      } else if (slotPropValue) {
+        overrideProps[propName] = slotPropValue;
+      }
+    } else if (propName === "style") {
+      overrideProps[propName] = { ...slotPropValue, ...childPropValue };
+    } else if (propName === "className") {
+      overrideProps[propName] = [slotPropValue, childPropValue].filter(Boolean).join(" ");
+    }
+  }
+  return { ...slotProps, ...overrideProps };
 }
-__name(getSideAndAlignFromPlacement, "getSideAndAlignFromPlacement");
-var Root2 = Popper;
-var Anchor = PopperAnchor;
-var Content = PopperContent;
-var Arrow = PopperArrow;
+__name(mergeProps, "mergeProps");
+function getElementRef(element) {
+  let getter = Object.getOwnPropertyDescriptor(element.props, "ref")?.get;
+  let mayWarn = getter && "isReactWarning" in getter && getter.isReactWarning;
+  if (mayWarn) {
+    return element.ref;
+  }
+  getter = Object.getOwnPropertyDescriptor(element, "ref")?.get;
+  mayWarn = getter && "isReactWarning" in getter && getter.isReactWarning;
+  if (mayWarn) {
+    return element.props.ref;
+  }
+  return element.props.ref || element.ref;
+}
+__name(getElementRef, "getElementRef");
+function isSlottable(child) {
+  return React.isValidElement(child) && typeof child.type === "function" && "__radixId" in child.type && child.type.__radixId === SLOTTABLE_IDENTIFIER;
+}
+__name(isSlottable, "isSlottable");
+var REACT_LAZY_TYPE = Symbol.for("react.lazy");
+function isLazyComponent(element) {
+  return element != null && typeof element === "object" && "$$typeof" in element && element.$$typeof === REACT_LAZY_TYPE && "_payload" in element && isPromiseLike(element._payload);
+}
+__name(isLazyComponent, "isLazyComponent");
+function isPromiseLike(value) {
+  return typeof value === "object" && value !== null && "then" in value;
+}
+__name(isPromiseLike, "isPromiseLike");
+var createSlotError = /* @__PURE__ */ __name((ownerName) => {
+  return `${ownerName} failed to slot onto its children. Expected a single React element child or \`Slottable\`.`;
+}, "createSlotError");
+var createSlottableError = /* @__PURE__ */ __name((ownerName) => {
+  return `${ownerName} failed to slot onto its \`Slottable\`. Expected \`Slottable\` to receive a single React element child.`;
+}, "createSlottableError");
+var use = React[" use ".trim().toString()];
 export {
-  ALIGN_OPTIONS,
-  Anchor,
-  Arrow,
-  Content,
-  Popper,
-  PopperAnchor,
-  PopperArrow,
-  PopperContent,
-  Root2 as Root,
-  SIDE_OPTIONS,
-  createPopperScope
+  Slot as Root,
+  Slot,
+  Slottable,
+  createSlot,
+  createSlottable
 };
 //# sourceMappingURL=index.mjs.map

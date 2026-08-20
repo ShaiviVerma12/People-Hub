@@ -1,3 +1,3 @@
-# `react-popover`
+# `react-slot`
 
-View docs [here](https://radix-ui.com/primitives/docs/components/popover).
+View docs [here](https://radix-ui.com/primitives/docs/utilities/slot).
