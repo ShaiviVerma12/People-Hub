@@ -1,115 +1,141 @@
-export interface NavigateOptions {
-    ignoreBlocker?: boolean;
-}
-type SubscriberHistoryAction = {
-    type: Exclude<HistoryAction, 'GO'>;
-} | {
-    type: 'GO';
-    index: number;
-};
-type SubscriberArgs = {
-    location: HistoryLocation;
-    action: SubscriberHistoryAction;
-};
-export interface RouterHistory {
-    location: HistoryLocation;
-    length: number;
-    subscribers: Set<(opts: SubscriberArgs) => void>;
-    subscribe: (cb: (opts: SubscriberArgs) => void) => () => void;
-    push: (path: string, state?: any, navigateOpts?: NavigateOptions) => void;
-    replace: (path: string, state?: any, navigateOpts?: NavigateOptions) => void;
-    go: (index: number, navigateOpts?: NavigateOptions) => void;
-    back: (navigateOpts?: NavigateOptions) => void;
-    forward: (navigateOpts?: NavigateOptions) => void;
-    canGoBack: () => boolean;
-    createHref: (href: string) => string;
-    block: (blocker: NavigationBlocker) => () => void;
-    flush: () => void;
-    destroy: () => void;
-    notify: (action: SubscriberHistoryAction) => void;
-    _ignoreSubscribers?: boolean;
-}
-export interface HistoryLocation extends ParsedPath {
-    state: ParsedHistoryState;
-}
-export interface ParsedPath {
-    href: string;
-    pathname: string;
-    search: string;
-    hash: string;
-}
-export interface HistoryState {
-}
-export type ParsedHistoryState = HistoryState & {
-    key?: string;
-    __TSR_key?: string;
-    __TSR_index: number;
-};
-type ShouldAllowNavigation = any;
-export type HistoryAction = 'PUSH' | 'REPLACE' | 'FORWARD' | 'BACK' | 'GO';
-export type BlockerFnArgs = {
-    currentLocation: HistoryLocation;
-    nextLocation: HistoryLocation;
-    action: HistoryAction;
-};
-export type BlockerFn = (args: BlockerFnArgs) => Promise<ShouldAllowNavigation> | ShouldAllowNavigation;
-export type NavigationBlocker = {
-    blockerFn: BlockerFn;
-    enableBeforeUnload?: (() => boolean) | boolean;
-};
-export declare function createHistory(opts: {
-    getLocation: () => HistoryLocation;
-    getLength: () => number;
-    pushState: (path: string, state: any) => void;
-    replaceState: (path: string, state: any) => void;
-    go: (n: number) => void;
-    back: (ignoreBlocker: boolean) => void;
-    forward: (ignoreBlocker: boolean) => void;
-    createHref: (path: string) => string;
-    flush?: () => void;
-    destroy?: () => void;
-    onBlocked?: () => void;
-    getBlockers?: () => Array<NavigationBlocker>;
-    setBlockers?: (blockers: Array<NavigationBlocker>) => void;
-    notifyOnIndexChange?: boolean;
-}): RouterHistory;
-/**
- * Creates a history object that can be used to interact with the browser's
- * navigation. This is a lightweight API wrapping the browser's native methods.
- * It is designed to work with TanStack Router, but could be used as a standalone API as well.
- * IMPORTANT: This API implements history throttling via a microtask to prevent
- * excessive calls to the history API. In some browsers, calling history.pushState or
- * history.replaceState in quick succession can cause the browser to ignore subsequent
- * calls. This API smooths out those differences and ensures that your application
- * state will *eventually* match the browser state. In most cases, this is not a problem,
- * but if you need to ensure that the browser state is up to date, you can use the
- * `history.flush` method to immediately flush all pending state changes to the browser URL.
- * @param opts
- * @param opts.getHref A function that returns the current href (path + search + hash)
- * @param opts.createHref A function that takes a path and returns a href (path + search + hash)
- * @returns A history instance
- */
-export declare function createBrowserHistory(opts?: {
-    parseLocation?: () => HistoryLocation;
-    createHref?: (path: string) => string;
-    window?: any;
-}): RouterHistory;
-/**
- * Create a hash-based history implementation.
- * Useful for static hosts or environments without server URL rewriting.
- * @link https://tanstack.com/router/latest/docs/framework/react/guide/history-types
- */
-export declare function createHashHistory(opts?: {
-    window?: any;
-}): RouterHistory;
-/**
- * Create an in-memory history implementation.
- * Ideal for server rendering, tests, and non-DOM environments.
- * @link https://tanstack.com/router/latest/docs/framework/react/guide/history-types
- */
-export declare function createMemoryHistory(opts?: {
-    initialEntries: Array<string>;
-    initialIndex?: number;
-}): RouterHistory;
-export declare function parseHref(href: string, state: ParsedHistoryState | undefined): HistoryLocation;
-export {};
+export { focusManager_alias_1 as focusManager } from './_tsup-dts-rollup.cjs';
+export { environmentManager_alias_1 as environmentManager } from './_tsup-dts-rollup.cjs';
+export { defaultShouldDehydrateMutation_alias_1 as defaultShouldDehydrateMutation } from './_tsup-dts-rollup.cjs';
+export { defaultShouldDehydrateQuery_alias_1 as defaultShouldDehydrateQuery } from './_tsup-dts-rollup.cjs';
+export { dehydrate_alias_1 as dehydrate } from './_tsup-dts-rollup.cjs';
+export { hydrate_alias_1 as hydrate } from './_tsup-dts-rollup.cjs';
+export { InfiniteQueryObserver } from './_tsup-dts-rollup.cjs';
+export { MutationCache } from './_tsup-dts-rollup.cjs';
+export { MutationCacheNotifyEvent } from './_tsup-dts-rollup.cjs';
+export { MutationObserver } from './_tsup-dts-rollup.cjs';
+export { defaultScheduler } from './_tsup-dts-rollup.cjs';
+export { notifyManager } from './_tsup-dts-rollup.cjs';
+export { onlineManager } from './_tsup-dts-rollup.cjs';
+export { QueriesObserver } from './_tsup-dts-rollup.cjs';
+export { QueryCache } from './_tsup-dts-rollup.cjs';
+export { QueryCacheNotifyEvent } from './_tsup-dts-rollup.cjs';
+export { QueryClient } from './_tsup-dts-rollup.cjs';
+export { QueryObserver } from './_tsup-dts-rollup.cjs';
+export { CancelledError } from './_tsup-dts-rollup.cjs';
+export { isCancelledError } from './_tsup-dts-rollup.cjs';
+export { timeoutManager } from './_tsup-dts-rollup.cjs';
+export { ManagedTimerId } from './_tsup-dts-rollup.cjs';
+export { TimeoutCallback } from './_tsup-dts-rollup.cjs';
+export { TimeoutProvider } from './_tsup-dts-rollup.cjs';
+export { hashKey } from './_tsup-dts-rollup.cjs';
+export { isServer } from './_tsup-dts-rollup.cjs';
+export { keepPreviousData } from './_tsup-dts-rollup.cjs';
+export { matchMutation } from './_tsup-dts-rollup.cjs';
+export { matchQuery } from './_tsup-dts-rollup.cjs';
+export { noop } from './_tsup-dts-rollup.cjs';
+export { partialMatchKey } from './_tsup-dts-rollup.cjs';
+export { replaceEqualDeep } from './_tsup-dts-rollup.cjs';
+export { shouldThrowError } from './_tsup-dts-rollup.cjs';
+export { skipToken } from './_tsup-dts-rollup.cjs';
+export { MutationFilters } from './_tsup-dts-rollup.cjs';
+export { QueryFilters } from './_tsup-dts-rollup.cjs';
+export { SkipToken } from './_tsup-dts-rollup.cjs';
+export { Updater } from './_tsup-dts-rollup.cjs';
+export { experimental_streamedQuery } from './_tsup-dts-rollup.cjs';
+export { DehydratedState_alias_1 as DehydratedState } from './_tsup-dts-rollup.cjs';
+export { DehydrateOptions_alias_1 as DehydrateOptions } from './_tsup-dts-rollup.cjs';
+export { HydrateOptions_alias_1 as HydrateOptions } from './_tsup-dts-rollup.cjs';
+export { Mutation } from './_tsup-dts-rollup.cjs';
+export { MutationState } from './_tsup-dts-rollup.cjs';
+export { QueriesObserverOptions } from './_tsup-dts-rollup.cjs';
+export { Query } from './_tsup-dts-rollup.cjs';
+export { QueryState } from './_tsup-dts-rollup.cjs';
+export { NonUndefinedGuard } from './_tsup-dts-rollup.cjs';
+export { DistributiveOmit } from './_tsup-dts-rollup.cjs';
+export { OmitKeyof } from './_tsup-dts-rollup.cjs';
+export { Override } from './_tsup-dts-rollup.cjs';
+export { Register } from './_tsup-dts-rollup.cjs';
+export { DefaultError } from './_tsup-dts-rollup.cjs';
+export { QueryKey } from './_tsup-dts-rollup.cjs';
+export { dataTagSymbol } from './_tsup-dts-rollup.cjs';
+export { dataTagErrorSymbol } from './_tsup-dts-rollup.cjs';
+export { unsetMarker } from './_tsup-dts-rollup.cjs';
+export { UnsetMarker } from './_tsup-dts-rollup.cjs';
+export { AnyDataTag } from './_tsup-dts-rollup.cjs';
+export { DataTag } from './_tsup-dts-rollup.cjs';
+export { InferDataFromTag } from './_tsup-dts-rollup.cjs';
+export { InferErrorFromTag } from './_tsup-dts-rollup.cjs';
+export { QueryFunction } from './_tsup-dts-rollup.cjs';
+export { StaleTime } from './_tsup-dts-rollup.cjs';
+export { StaleTimeFunction } from './_tsup-dts-rollup.cjs';
+export { QueryBooleanOption } from './_tsup-dts-rollup.cjs';
+export { QueryPersister } from './_tsup-dts-rollup.cjs';
+export { QueryFunctionContext } from './_tsup-dts-rollup.cjs';
+export { InitialDataFunction } from './_tsup-dts-rollup.cjs';
+export { PlaceholderDataFunction } from './_tsup-dts-rollup.cjs';
+export { QueriesPlaceholderDataFunction } from './_tsup-dts-rollup.cjs';
+export { QueryKeyHashFunction } from './_tsup-dts-rollup.cjs';
+export { GetPreviousPageParamFunction } from './_tsup-dts-rollup.cjs';
+export { GetNextPageParamFunction } from './_tsup-dts-rollup.cjs';
+export { InfiniteData } from './_tsup-dts-rollup.cjs';
+export { QueryMeta } from './_tsup-dts-rollup.cjs';
+export { NetworkMode } from './_tsup-dts-rollup.cjs';
+export { NotifyOnChangeProps } from './_tsup-dts-rollup.cjs';
+export { QueryOptions } from './_tsup-dts-rollup.cjs';
+export { InitialPageParam } from './_tsup-dts-rollup.cjs';
+export { InfiniteQueryPageParamsOptions } from './_tsup-dts-rollup.cjs';
+export { ThrowOnError } from './_tsup-dts-rollup.cjs';
+export { QueryObserverOptions } from './_tsup-dts-rollup.cjs';
+export { WithRequired } from './_tsup-dts-rollup.cjs';
+export { DefaultedQueryObserverOptions } from './_tsup-dts-rollup.cjs';
+export { InfiniteQueryObserverOptions } from './_tsup-dts-rollup.cjs';
+export { DefaultedInfiniteQueryObserverOptions } from './_tsup-dts-rollup.cjs';
+export { FetchQueryOptions } from './_tsup-dts-rollup.cjs';
+export { EnsureQueryDataOptions } from './_tsup-dts-rollup.cjs';
+export { EnsureInfiniteQueryDataOptions } from './_tsup-dts-rollup.cjs';
+export { FetchInfiniteQueryOptions } from './_tsup-dts-rollup.cjs';
+export { ResultOptions } from './_tsup-dts-rollup.cjs';
+export { RefetchOptions } from './_tsup-dts-rollup.cjs';
+export { InvalidateQueryFilters } from './_tsup-dts-rollup.cjs';
+export { RefetchQueryFilters } from './_tsup-dts-rollup.cjs';
+export { InvalidateOptions } from './_tsup-dts-rollup.cjs';
+export { ResetOptions } from './_tsup-dts-rollup.cjs';
+export { FetchNextPageOptions } from './_tsup-dts-rollup.cjs';
+export { FetchPreviousPageOptions } from './_tsup-dts-rollup.cjs';
+export { QueryStatus } from './_tsup-dts-rollup.cjs';
+export { FetchStatus } from './_tsup-dts-rollup.cjs';
+export { QueryObserverBaseResult } from './_tsup-dts-rollup.cjs';
+export { QueryObserverPendingResult } from './_tsup-dts-rollup.cjs';
+export { QueryObserverLoadingResult } from './_tsup-dts-rollup.cjs';
+export { QueryObserverLoadingErrorResult } from './_tsup-dts-rollup.cjs';
+export { QueryObserverRefetchErrorResult } from './_tsup-dts-rollup.cjs';
+export { QueryObserverSuccessResult } from './_tsup-dts-rollup.cjs';
+export { QueryObserverPlaceholderResult } from './_tsup-dts-rollup.cjs';
+export { DefinedQueryObserverResult } from './_tsup-dts-rollup.cjs';
+export { QueryObserverResult } from './_tsup-dts-rollup.cjs';
+export { InfiniteQueryObserverBaseResult } from './_tsup-dts-rollup.cjs';
+export { InfiniteQueryObserverPendingResult } from './_tsup-dts-rollup.cjs';
+export { InfiniteQueryObserverLoadingResult } from './_tsup-dts-rollup.cjs';
+export { InfiniteQueryObserverLoadingErrorResult } from './_tsup-dts-rollup.cjs';
+export { InfiniteQueryObserverRefetchErrorResult } from './_tsup-dts-rollup.cjs';
+export { InfiniteQueryObserverSuccessResult } from './_tsup-dts-rollup.cjs';
+export { InfiniteQueryObserverPlaceholderResult } from './_tsup-dts-rollup.cjs';
+export { DefinedInfiniteQueryObserverResult } from './_tsup-dts-rollup.cjs';
+export { InfiniteQueryObserverResult } from './_tsup-dts-rollup.cjs';
+export { MutationKey } from './_tsup-dts-rollup.cjs';
+export { MutationStatus } from './_tsup-dts-rollup.cjs';
+export { MutationScope } from './_tsup-dts-rollup.cjs';
+export { MutationMeta } from './_tsup-dts-rollup.cjs';
+export { MutationFunctionContext } from './_tsup-dts-rollup.cjs';
+export { MutationFunction } from './_tsup-dts-rollup.cjs';
+export { MutationOptions } from './_tsup-dts-rollup.cjs';
+export { MutationObserverOptions } from './_tsup-dts-rollup.cjs';
+export { MutateOptions } from './_tsup-dts-rollup.cjs';
+export { MutateFunction } from './_tsup-dts-rollup.cjs';
+export { MutationObserverBaseResult } from './_tsup-dts-rollup.cjs';
+export { MutationObserverIdleResult } from './_tsup-dts-rollup.cjs';
+export { MutationObserverLoadingResult } from './_tsup-dts-rollup.cjs';
+export { MutationObserverErrorResult } from './_tsup-dts-rollup.cjs';
+export { MutationObserverSuccessResult } from './_tsup-dts-rollup.cjs';
+export { MutationObserverResult } from './_tsup-dts-rollup.cjs';
+export { QueryClientConfig } from './_tsup-dts-rollup.cjs';
+export { DefaultOptions } from './_tsup-dts-rollup.cjs';
+export { CancelOptions } from './_tsup-dts-rollup.cjs';
+export { SetDataOptions } from './_tsup-dts-rollup.cjs';
+export { NotifyEventType } from './_tsup-dts-rollup.cjs';
+export { NotifyEvent } from './_tsup-dts-rollup.cjs';
