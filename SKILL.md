@@ -1,296 +1,158 @@
 ---
-name: react-start
+name: router-core
 description: >-
-  React bindings for TanStack Start: createStart, StartClient,
-  StartServer, React-specific imports, re-exports from
-  @tanstack/react-router, full project setup with React, useServerFn
-  hook.
+  Framework-agnostic core concepts for TanStack Router: route trees,
+  createRouter, createRoute, createRootRoute, createRootRouteWithContext,
+  addChildren, Register type declaration, route matching, route sorting,
+  file naming conventions. Entry point for all router skills.
 metadata:
-  type: framework
-  library: tanstack-start
-  library_version: '1.168.32'
-  framework: react
-requires:
-  - start-core
-sources:
-  - TanStack/router:packages/react-start/src
-  - TanStack/router:docs/start/framework/react/build-from-scratch.md
+  type: core
+  library: tanstack-router
+  library_version: '1.171.15'
 ---
 
-# React Start (`@tanstack/react-start`)
+# TanStack Router Core
 
-This is the React Start entry skill. Use the workflow below, then load only the package skill that owns the boundary you are changing. Do not read `start-core`, Router Core, and React Router manuals in full before starting.
+TanStack Router is a type-safe router for React and Solid with built-in SWR caching, JSON-first search params, file-based route generation, and end-to-end type inference. The core is framework-agnostic; React and Solid bindings layer on top.
 
-For React Server Components patterns, see [react-start/server-components](./server-components/SKILL.md).
+> **CRITICAL**: TanStack Router types are FULLY INFERRED. Never cast, never annotate inferred values. This is the #1 AI agent mistake.
 
-> **CRITICAL**: All code is ISOMORPHIC by default. Loaders run on BOTH server and client. Use `createServerFn` for server-only logic.
+> **CRITICAL**: TanStack Router is CLIENT-FIRST. Loaders run on the client by default, NOT server-only like Remix/Next.js. Do not confuse TanStack Router APIs with Next.js or React Router.
 
-> **CRITICAL**: Do not confuse `@tanstack/react-start` with Next.js or Remix. They are completely different frameworks with different APIs.
+Use this entry skill to choose one primary sub-skill. Do not load the full catalog. Load a second sub-skill only when the task crosses a real boundary, such as an authenticated loader that needs both `auth-and-guards` and `data-loading`.
 
-> **CRITICAL**: Types are FULLY INFERRED. Never cast, never annotate inferred values.
+## Sub-Skills
 
-## Full-Stack Workflow
+| Task                                               | Sub-Skill                                                                    |
+| -------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Validate, read, write, transform search params     | [router-core/search-params/SKILL.md](./search-params/SKILL.md)               |
+| Dynamic segments, splats, optional params          | [router-core/path-params/SKILL.md](./path-params/SKILL.md)                   |
+| Link, useNavigate, preloading, blocking            | [router-core/navigation/SKILL.md](./navigation/SKILL.md)                     |
+| Route loaders, SWR caching, context, deferred data | [router-core/data-loading/SKILL.md](./data-loading/SKILL.md)                 |
+| Auth guards, RBAC, beforeLoad redirects            | [router-core/auth-and-guards/SKILL.md](./auth-and-guards/SKILL.md)           |
+| Automatic and manual code splitting                | [router-core/code-splitting/SKILL.md](./code-splitting/SKILL.md)             |
+| 404 handling, error boundaries, notFound()         | [router-core/not-found-and-errors/SKILL.md](./not-found-and-errors/SKILL.md) |
+| Inference, Register, from narrowing, TS perf       | [router-core/type-safety/SKILL.md](./type-safety/SKILL.md)                   |
+| Streaming/non-streaming SSR, hydration, head mgmt  | [router-core/ssr/SKILL.md](./ssr/SKILL.md)                                   |
 
-1. Define the route and component with `createFileRoute`.
-2. Put private or server-only reads and writes in `createServerFn`; call reads directly from loaders.
-3. Use `useServerFn` for component mutations, then invalidate the router or query cache after the write resolves.
-4. Enforce auth in every private server function or server route. Add `beforeLoad` separately for navigation UX.
-5. Run the initial SSR path, client navigation, mutation plus reload, direct anonymous endpoint request, runtime response assertion, type tests, and production build.
+## Quick Decision Tree
 
-Load `start-core/server-routes` instead of `server-functions` only when a raw HTTP endpoint is required. Load `router-core/*` only for the specific routing concern involved, such as params or search validation.
+```
+Need to add/read/write URL query parameters?
+  → router-core/search-params
 
-## Package API Surface
+Need dynamic URL segments like /posts/$postId?
+  → router-core/path-params
 
-`@tanstack/react-start` re-exports everything from `@tanstack/start-client-core` plus:
+Need to create links or navigate programmatically?
+  → router-core/navigation
 
-- `useServerFn` — React hook for calling server functions from components
+Need to fetch data for a route?
+  Is it client-side only or client+server?
+    → router-core/data-loading
+  Using TanStack Query as external cache?
+    → compositions/router-query (separate skill)
 
-All core APIs (`createServerFn`, `createMiddleware`, `createStart`, `createIsomorphicFn`, `createServerOnlyFn`, `createClientOnlyFn`) are available from `@tanstack/react-start`.
+Need to protect routes behind auth?
+  → router-core/auth-and-guards
 
-Server utilities (`getRequest`, `getRequestHeader`, `setResponseHeader`, `setResponseHeaders`, `setResponseStatus`) are imported from `@tanstack/react-start/server`.
+Need to reduce bundle size per route?
+  → router-core/code-splitting
 
-## Full Project Setup
+Need custom 404 or error handling?
+  → router-core/not-found-and-errors
 
-### 1. Install Dependencies
+Having TypeScript issues or performance problems?
+  → router-core/type-safety
 
-```bash
-npm i @tanstack/react-start @tanstack/react-router react react-dom
-npm i -D vite @vitejs/plugin-react typescript @types/react @types/react-dom
+Need server-side rendering?
+  → router-core/ssr
 ```
 
-### 2. package.json
+## Cross-Cutting Completion Checks
 
-```json
-{
-  "type": "module",
-  "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
-    "start": "node .output/server/index.mjs"
-  }
-}
-```
+For route refactors:
 
-### 3. tsconfig.json
+1. Rename or move the route file; do not hand-edit the generated `createFileRoute` path.
+2. Regenerate `routeTree.gen.ts` with the configured Router plugin or CLI.
+3. Update links, redirects, `from` narrowing, params, and tests that reference the old route.
+4. Run type tests and a production build. A typecheck alone does not prove route generation or bundling works.
 
-```json
-{
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "moduleResolution": "Bundler",
-    "module": "ESNext",
-    "target": "ES2022",
-    "skipLibCheck": true,
-    "strictNullChecks": true
-  }
-}
-```
+For response schema changes:
 
-### 4. vite.config.ts
+1. Update the source model and shared validation schema.
+2. Update the server function or API serializer so the field exists at runtime.
+3. Update loader and component consumers without casts.
+4. Assert the actual response payload in a unit or integration test. Typechecking cannot catch a serializer that omits the new field.
 
-```ts
-import { defineConfig } from 'vite'
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-import viteReact from '@vitejs/plugin-react'
+## Minimal Working Example
 
-export default defineConfig({
-  plugins: [
-    tanstackStart(), // MUST come before react()
-    viteReact(),
-  ],
+```tsx
+// src/routes/__root.tsx
+import { createRootRoute, Outlet } from '@tanstack/react-router'
+
+export const Route = createRootRoute({
+  component: () => <Outlet />,
 })
 ```
 
-### 5. Router Factory (src/router.tsx)
+```tsx
+// src/routes/index.tsx
+import { createFileRoute } from '@tanstack/react-router'
+
+export const Route = createFileRoute('/')({
+  component: () => <h1>Home</h1>,
+})
+```
 
 ```tsx
+// src/router.tsx
 import { createRouter } from '@tanstack/react-router'
 import { routeTree } from './routeTree.gen'
 
-export function getRouter() {
-  const router = createRouter({
-    routeTree,
-    scrollRestoration: true,
-  })
-  return router
-}
-```
+const router = createRouter({ routeTree })
 
-### 6. Root Route (src/routes/\_\_root.tsx)
+// REQUIRED for type safety — without this, Link/useNavigate have no autocomplete
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: typeof router
+  }
+}
+
+export default router
+```
 
 ```tsx
-import type { ReactNode } from 'react'
-import {
-  Outlet,
-  createRootRoute,
-  HeadContent,
-  Scripts,
-} from '@tanstack/react-router'
+// src/main.tsx
+import { RouterProvider } from '@tanstack/react-router'
+import router from './router'
 
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My TanStack Start App' },
-    ],
-  }),
-  component: RootComponent,
-})
-
-function RootComponent() {
-  return (
-    <RootDocument>
-      <Outlet />
-    </RootDocument>
-  )
-}
-
-function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
-  return (
-    <html>
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  )
+function App() {
+  return <RouterProvider router={router} />
 }
 ```
-
-### 7. Index Route (src/routes/index.tsx)
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { createServerFn } from '@tanstack/react-start'
-
-const getGreeting = createServerFn({ method: 'GET' }).handler(async () => {
-  return 'Hello from TanStack Start!'
-})
-
-export const Route = createFileRoute('/')({
-  loader: () => getGreeting(),
-  component: HomePage,
-})
-
-function HomePage() {
-  const greeting = Route.useLoaderData()
-  return <h1>{greeting}</h1>
-}
-```
-
-## useServerFn Hook
-
-Use `useServerFn` to call server functions from React components with proper integration:
-
-```tsx
-import { createServerFn, useServerFn } from '@tanstack/react-start'
-
-const updatePost = createServerFn({ method: 'POST' })
-  .validator((data: { id: string; title: string }) => data)
-  .handler(async ({ data }) => {
-    await db.posts.update(data.id, { title: data.title })
-    return { success: true }
-  })
-
-function EditPostForm({ postId }: { postId: string }) {
-  const updatePostFn = useServerFn(updatePost)
-  const [title, setTitle] = useState('')
-
-  return (
-    <form
-      onSubmit={async (e) => {
-        e.preventDefault()
-        await updatePostFn({ data: { id: postId, title } })
-      }}
-    >
-      <input value={title} onChange={(e) => setTitle(e.target.value)} />
-      <button type="submit">Save</button>
-    </form>
-  )
-}
-```
-
-## Global Start Configuration (src/start.ts)
-
-```tsx
-import { createStart, createMiddleware } from '@tanstack/react-start'
-
-const requestLogger = createMiddleware().server(async ({ next, request }) => {
-  console.log(`${request.method} ${request.url}`)
-  return next()
-})
-
-export const startInstance = createStart(() => ({
-  requestMiddleware: [requestLogger],
-}))
-```
-
-## React-Specific Components
-
-All routing components from `@tanstack/react-router` work in Start:
-
-- `<RouterProvider>` — not needed in Start (handled automatically)
-- `<Outlet>` — renders matched child route
-- `<Link>` — type-safe navigation
-- `<Navigate>` — declarative redirect
-- `<HeadContent>` — renders head tags (must be in `<head>`)
-- `<Scripts>` — renders body scripts (must be in `<body>`)
-- `<Await>` — renders deferred data with Suspense
-- `<ClientOnly>` — renders children only after hydration
-- `<CatchBoundary>` — error boundary
-
-## Hooks Reference
-
-All hooks from `@tanstack/react-router` work in Start:
-
-- `useRouter()` — router instance
-- `useRouterState()` — subscribe to router state
-- `useNavigate()` — programmatic navigation
-- `useSearch({ from })` — validated search params
-- `useParams({ from })` — path params
-- `useLoaderData({ from })` — loader data
-- `useMatch({ from })` — full route match
-- `useRouteContext({ from })` — route context
-- `Route.useLoaderData()` — typed loader data (preferred in route files)
-- `Route.useSearch()` — typed search params (preferred in route files)
 
 ## Common Mistakes
 
-### 1. CRITICAL: Importing from wrong package
+### HIGH: createFileRoute path string must match the file path
+
+The Vite plugin manages the path string in `createFileRoute`. Do not change it manually — it must match the file's location under `src/routes/`:
 
 ```tsx
-// WRONG — this is the SPA router, NOT Start
-import { createServerFn } from '@tanstack/react-router'
+// File: src/routes/posts/$postId.tsx
+export const Route = createFileRoute('/posts/$postId')({
+  // ✅ matches file path
+  component: PostPage,
+})
 
-// CORRECT — server functions come from react-start
-import { createServerFn } from '@tanstack/react-start'
-
-// CORRECT — routing APIs come from react-router (re-exported by Start too)
-import { createFileRoute, Link } from '@tanstack/react-router'
+export const Route = createFileRoute('/post/$postId')({
+  // ❌ silent mismatch
+  component: PostPage,
+})
 ```
 
-### 2. HIGH: Using React hooks in beforeLoad or loader
+The plugin auto-generates this string. If you rename a route file, the plugin updates it. Never edit the path string by hand.
 
-```tsx
-// WRONG — beforeLoad/loader are NOT React components
-beforeLoad: () => {
-  const auth = useAuth() // React hook, cannot be used here
-}
+## Version Note
 
-// CORRECT — pass state via router context
-const rootRoute = createRootRouteWithContext<{ auth: AuthState }>()({})
-```
-
-### 3. HIGH: Missing Scripts component
-
-Without `<Scripts />` in the root route's `<body>`, client JavaScript doesn't load and the app won't hydrate.
-
-## Cross-References
-
-- [start-core](../../../start-client-core/skills/start-core/SKILL.md) — core Start concepts
-- [router-core](../../../router-core/skills/router-core/SKILL.md) — routing fundamentals
-- [react-router](../../../react-router/skills/react-router/SKILL.md) — React Router hooks and components
+This skill targets `@tanstack/router-core` v1.171.15. Splat routes use `$` (not `*`); the `*` compat alias will be removed in v2.
