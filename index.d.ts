@@ -1,62 +1,46 @@
+import * as _radix_ui_react_context from '@radix-ui/react-context';
 import * as React from 'react';
+import * as ArrowPrimitive from '@radix-ui/react-arrow';
 import { Primitive } from '@radix-ui/react-primitive';
+import { Measurable } from '@radix-ui/rect';
 
+declare const SIDE_OPTIONS: readonly ["top", "right", "bottom", "left"];
+declare const ALIGN_OPTIONS: readonly ["start", "center", "end"];
+type Side = (typeof SIDE_OPTIONS)[number];
+type Align = (typeof ALIGN_OPTIONS)[number];
+declare const createPopperScope: _radix_ui_react_context.CreateScope;
+interface PopperProps {
+    children?: React.ReactNode;
+}
+declare const Popper: React.FC<PopperProps>;
 type PrimitiveDivProps = React.ComponentPropsWithoutRef<typeof Primitive.div>;
-interface DismissableLayerProps extends PrimitiveDivProps {
-    /**
-     * When `true`, hover/focus/click interactions will be disabled on elements outside
-     * the `DismissableLayer`. Users will need to click twice on outside elements to
-     * interact with them: once to close the `DismissableLayer`, and again to trigger the element.
-     */
-    disableOutsidePointerEvents?: boolean;
-    /**
-     * When `true`, a `'pointerdown'` event outside of the layered element will
-     * wait for the interaction's click event before dispatching, allowing
-     * third-party code to stop propagation of later events and cancel dismissal.
-     */
-    deferPointerDownOutside?: boolean;
-    /**
-     * Event handler called when the escape key is down.
-     * Can be prevented.
-     */
-    onEscapeKeyDown?: (event: KeyboardEvent) => void;
-    /**
-     * Event handler called when the a `pointerdown` event happens outside of the `DismissableLayer`.
-     * Can be prevented.
-     */
-    onPointerDownOutside?: (event: PointerDownOutsideEvent) => void;
-    /**
-     * Event handler called when the focus moves outside of the `DismissableLayer`.
-     * Can be prevented.
-     */
-    onFocusOutside?: (event: FocusOutsideEvent) => void;
-    /**
-     * Event handler called when an interaction happens outside the `DismissableLayer`.
-     * Specifically, when a `pointerdown` event happens outside or focus moves outside of it.
-     * Can be prevented.
-     */
-    onInteractOutside?: (event: PointerDownOutsideEvent | FocusOutsideEvent) => void;
-    /**
-     * Handler called when the `DismissableLayer` should be dismissed
-     */
-    onDismiss?: () => void;
+interface PopperAnchorProps extends PrimitiveDivProps {
+    virtualRef?: React.RefObject<Measurable | null>;
 }
-declare const DismissableLayer: React.ForwardRefExoticComponent<DismissableLayerProps & React.RefAttributes<HTMLDivElement>>;
-type DismissableLayerBranchElement = React.ComponentRef<typeof Primitive.div>;
-interface DismissableLayerBranchProps extends PrimitiveDivProps {
+declare const PopperAnchor: React.ForwardRefExoticComponent<PopperAnchorProps & React.RefAttributes<HTMLDivElement>>;
+type Boundary = Element | null;
+interface PopperContentProps extends PrimitiveDivProps {
+    side?: Side;
+    sideOffset?: number;
+    align?: Align;
+    alignOffset?: number;
+    arrowPadding?: number;
+    avoidCollisions?: boolean;
+    collisionBoundary?: Boundary | Boundary[];
+    collisionPadding?: number | Partial<Record<Side, number>>;
+    sticky?: 'partial' | 'always';
+    hideWhenDetached?: boolean;
+    updatePositionStrategy?: 'optimized' | 'always';
+    onPlaced?: () => void;
 }
-declare const DismissableLayerBranch: React.ForwardRefExoticComponent<DismissableLayerBranchProps & React.RefAttributes<HTMLDivElement>>;
-/**
- * Registers a node as a "dismiss surface" for the enclosing DismissableLayer
- */
-declare function useDismissableLayerSurface(): React.RefCallback<DismissableLayerBranchElement>;
-type PointerDownOutsideEvent = CustomEvent<{
-    originalEvent: PointerEvent;
-}>;
-type FocusOutsideEvent = CustomEvent<{
-    originalEvent: FocusEvent;
-}>;
-declare const Root: React.ForwardRefExoticComponent<DismissableLayerProps & React.RefAttributes<HTMLDivElement>>;
-declare const Branch: React.ForwardRefExoticComponent<DismissableLayerBranchProps & React.RefAttributes<HTMLDivElement>>;
+declare const PopperContent: React.ForwardRefExoticComponent<PopperContentProps & React.RefAttributes<HTMLDivElement>>;
+type ArrowProps = React.ComponentPropsWithoutRef<typeof ArrowPrimitive.Root>;
+interface PopperArrowProps extends ArrowProps {
+}
+declare const PopperArrow: React.ForwardRefExoticComponent<PopperArrowProps & React.RefAttributes<SVGSVGElement>>;
+declare const Root: React.FC<PopperProps>;
+declare const Anchor: React.ForwardRefExoticComponent<PopperAnchorProps & React.RefAttributes<HTMLDivElement>>;
+declare const Content: React.ForwardRefExoticComponent<PopperContentProps & React.RefAttributes<HTMLDivElement>>;
+declare const Arrow: React.ForwardRefExoticComponent<PopperArrowProps & React.RefAttributes<SVGSVGElement>>;
 
-export { Branch, DismissableLayer, DismissableLayerBranch, type DismissableLayerProps, Root, useDismissableLayerSurface };
+export { ALIGN_OPTIONS, Anchor, Arrow, Content, Popper, PopperAnchor, type PopperAnchorProps, PopperArrow, type PopperArrowProps, PopperContent, type PopperContentProps, type PopperProps, Root, SIDE_OPTIONS, createPopperScope };

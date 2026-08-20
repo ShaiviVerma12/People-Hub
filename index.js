@@ -32,364 +32,355 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/index.ts
 var index_exports = {};
 __export(index_exports, {
-  Branch: () => Branch,
-  DismissableLayer: () => DismissableLayer,
-  DismissableLayerBranch: () => DismissableLayerBranch,
-  Root: () => Root,
-  useDismissableLayerSurface: () => useDismissableLayerSurface
+  ALIGN_OPTIONS: () => ALIGN_OPTIONS,
+  Anchor: () => Anchor,
+  Arrow: () => Arrow,
+  Content: () => Content,
+  Popper: () => Popper,
+  PopperAnchor: () => PopperAnchor,
+  PopperArrow: () => PopperArrow,
+  PopperContent: () => PopperContent,
+  Root: () => Root2,
+  SIDE_OPTIONS: () => SIDE_OPTIONS,
+  createPopperScope: () => createPopperScope
 });
 module.exports = __toCommonJS(index_exports);
 
-// src/dismissable-layer.tsx
+// src/popper.tsx
 var React = __toESM(require("react"));
-var import_primitive = require("@radix-ui/primitive");
-var import_react_primitive = require("@radix-ui/react-primitive");
+var import_react_dom = require("@floating-ui/react-dom");
+var ArrowPrimitive = __toESM(require("@radix-ui/react-arrow"));
 var import_react_compose_refs = require("@radix-ui/react-compose-refs");
+var import_react_context = require("@radix-ui/react-context");
+var import_react_primitive = require("@radix-ui/react-primitive");
 var import_react_use_callback_ref = require("@radix-ui/react-use-callback-ref");
+var import_react_use_layout_effect = require("@radix-ui/react-use-layout-effect");
+var import_react_use_size = require("@radix-ui/react-use-size");
 var import_jsx_runtime = require("react/jsx-runtime");
-var CONTEXT_UPDATE = "dismissableLayer.update";
-var POINTER_DOWN_OUTSIDE = "dismissableLayer.pointerDownOutside";
-var FOCUS_OUTSIDE = "dismissableLayer.focusOutside";
-var originalBodyPointerEvents;
-var DismissableLayerContext = React.createContext({
-  layers: /* @__PURE__ */ new Set(),
-  layersWithOutsidePointerEventsDisabled: /* @__PURE__ */ new Set(),
-  branches: /* @__PURE__ */ new Set(),
-  // Outside elements that belong to a layer's own dismiss affordance (eg, a
-  // dialog overlay). Pressing them should dismiss the layer regardless of
-  // whether or not they stop propagation.
-  //
-  // See https://github.com/radix-ui/primitives/issues/3346
-  dismissableSurfaces: /* @__PURE__ */ new Set()
-});
-var DismissableLayer = /* @__PURE__ */ React.forwardRef(
-  // blank line to reduce diff noise
-  /* @__PURE__ */ __name(function DismissableLayer2(props, forwardedRef) {
-    const {
-      disableOutsidePointerEvents = false,
-      deferPointerDownOutside = false,
-      onEscapeKeyDown,
-      onPointerDownOutside,
-      onFocusOutside,
-      onInteractOutside,
-      onDismiss,
-      ...layerProps
-    } = props;
-    const context = React.useContext(DismissableLayerContext);
-    const [node, setNode] = React.useState(null);
-    const ownerDocument = node?.ownerDocument ?? globalThis?.document;
-    const [, force] = React.useState({});
-    const composedRefs = (0, import_react_compose_refs.useComposedRefs)(forwardedRef, setNode);
-    const layers = Array.from(context.layers);
-    const [highestLayerWithOutsidePointerEventsDisabled] = [
-      ...context.layersWithOutsidePointerEventsDisabled
-    ].slice(-1);
-    const highestLayerWithOutsidePointerEventsDisabledIndex = highestLayerWithOutsidePointerEventsDisabled ? layers.indexOf(highestLayerWithOutsidePointerEventsDisabled) : -1;
-    const index = node ? layers.indexOf(node) : -1;
-    const isBodyPointerEventsDisabled = context.layersWithOutsidePointerEventsDisabled.size > 0;
-    const isPointerEventsEnabled = index >= highestLayerWithOutsidePointerEventsDisabledIndex;
-    const isDeferredPointerDownOutsideRef = React.useRef(false);
-    const pointerDownOutside = usePointerDownOutside(
-      (event) => {
-        onPointerDownOutside?.(event);
-        onInteractOutside?.(event);
-        if (!event.defaultPrevented) onDismiss?.();
+var SIDE_OPTIONS = ["top", "right", "bottom", "left"];
+var ALIGN_OPTIONS = ["start", "center", "end"];
+var POPPER_NAME = "Popper";
+var [createPopperContext, createPopperScope] = (0, import_react_context.createContextScope)(POPPER_NAME);
+var [PopperProvider, usePopperContext] = createPopperContext(POPPER_NAME);
+var Popper = /* @__PURE__ */ __name((props) => {
+  const { __scopePopper, children } = props;
+  const [anchor, setAnchor] = React.useState(null);
+  const [placementState, setPlacementState] = React.useState(void 0);
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+    PopperProvider,
+    {
+      scope: __scopePopper,
+      anchor,
+      onAnchorChange: setAnchor,
+      placementState,
+      setPlacementState,
+      children
+    }
+  );
+}, "Popper");
+var ANCHOR_NAME = "PopperAnchor";
+var PopperAnchor = /* @__PURE__ */ React.forwardRef(
+  /* @__PURE__ */ __name(function PopperAnchor2(props, forwardedRef) {
+    const { __scopePopper, virtualRef, ...anchorProps } = props;
+    const context = usePopperContext(ANCHOR_NAME, __scopePopper);
+    const ref = React.useRef(null);
+    const onAnchorChange = context.onAnchorChange;
+    const callbackRef = React.useCallback(
+      (node) => {
+        ref.current = node;
+        if (node) {
+          onAnchorChange(node);
+        }
       },
-      {
-        ownerDocument,
-        deferPointerDownOutside,
-        isDeferredPointerDownOutsideRef,
-        dismissableSurfaces: context.dismissableSurfaces,
-        shouldHandlePointerDownOutside: React.useCallback(
-          (target) => {
-            if (!(target instanceof Node)) {
-              return false;
-            }
-            const isPointerDownOnBranch = [...context.branches].some(
-              (branch) => branch.contains(target)
-            );
-            return isPointerEventsEnabled && !isPointerDownOnBranch;
-          },
-          [context.branches, isPointerEventsEnabled]
-        )
-      }
+      [onAnchorChange]
     );
-    const focusOutside = useFocusOutside((event) => {
-      if (deferPointerDownOutside && isDeferredPointerDownOutsideRef.current) {
+    const composedRefs = (0, import_react_compose_refs.useComposedRefs)(forwardedRef, callbackRef);
+    const anchorRef = React.useRef(null);
+    React.useEffect(() => {
+      if (!virtualRef) {
         return;
       }
-      const target = event.target;
-      const isFocusInBranch = [...context.branches].some((branch) => branch.contains(target));
-      if (isFocusInBranch) return;
-      onFocusOutside?.(event);
-      onInteractOutside?.(event);
-      if (!event.defaultPrevented) onDismiss?.();
-    }, ownerDocument);
-    const isHighestLayer = node ? index === layers.length - 1 : false;
-    const handleKeyDown = (0, import_react_use_callback_ref.useCallbackRef)((event) => {
-      if (event.key !== "Escape") {
-        return;
-      }
-      onEscapeKeyDown?.(event);
-      if (!event.defaultPrevented && onDismiss) {
-        event.preventDefault();
-        onDismiss();
+      const previousAnchor = anchorRef.current;
+      anchorRef.current = virtualRef.current;
+      if (previousAnchor !== anchorRef.current) {
+        onAnchorChange(anchorRef.current);
       }
     });
-    React.useEffect(() => {
-      if (!isHighestLayer) {
-        return;
-      }
-      ownerDocument.addEventListener("keydown", handleKeyDown, { capture: true });
-      return () => ownerDocument.removeEventListener("keydown", handleKeyDown, { capture: true });
-    }, [ownerDocument, isHighestLayer, handleKeyDown]);
-    React.useEffect(() => {
-      if (!node) return;
-      if (disableOutsidePointerEvents) {
-        if (context.layersWithOutsidePointerEventsDisabled.size === 0) {
-          originalBodyPointerEvents = ownerDocument.body.style.pointerEvents;
-          ownerDocument.body.style.pointerEvents = "none";
-        }
-        context.layersWithOutsidePointerEventsDisabled.add(node);
-      }
-      context.layers.add(node);
-      dispatchUpdate();
-      return () => {
-        if (disableOutsidePointerEvents) {
-          context.layersWithOutsidePointerEventsDisabled.delete(node);
-          if (context.layersWithOutsidePointerEventsDisabled.size === 0) {
-            ownerDocument.body.style.pointerEvents = originalBodyPointerEvents;
-          }
-        }
-      };
-    }, [node, ownerDocument, disableOutsidePointerEvents, context]);
-    React.useEffect(() => {
-      return () => {
-        if (!node) return;
-        context.layers.delete(node);
-        context.layersWithOutsidePointerEventsDisabled.delete(node);
-        dispatchUpdate();
-      };
-    }, [node, context]);
-    React.useEffect(() => {
-      const handleUpdate = /* @__PURE__ */ __name(() => force({}), "handleUpdate");
-      document.addEventListener(CONTEXT_UPDATE, handleUpdate);
-      return () => document.removeEventListener(CONTEXT_UPDATE, handleUpdate);
-    }, []);
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+    const sideAndAlign = context.placementState && getSideAndAlignFromPlacement(context.placementState);
+    const placedSide = sideAndAlign?.[0];
+    const placedAlign = sideAndAlign?.[1];
+    return virtualRef ? null : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
       import_react_primitive.Primitive.div,
       {
-        ...layerProps,
-        ref: composedRefs,
+        "data-radix-popper-side": placedSide,
+        "data-radix-popper-align": placedAlign,
+        ...anchorProps,
+        ref: composedRefs
+      }
+    );
+  }, "PopperAnchor")
+);
+var CONTENT_NAME = "PopperContent";
+var [PopperContentProvider, useContentContext] = createPopperContext(CONTENT_NAME);
+var PopperContent = /* @__PURE__ */ React.forwardRef(
+  /* @__PURE__ */ __name(function PopperContent2(props, forwardedRef) {
+    const {
+      __scopePopper,
+      side = "bottom",
+      sideOffset = 0,
+      align = "center",
+      alignOffset = 0,
+      arrowPadding = 0,
+      avoidCollisions = true,
+      collisionBoundary = [],
+      collisionPadding: collisionPaddingProp = 0,
+      sticky = "partial",
+      hideWhenDetached = false,
+      updatePositionStrategy = "optimized",
+      onPlaced,
+      ...contentProps
+    } = props;
+    const context = usePopperContext(CONTENT_NAME, __scopePopper);
+    const [content, setContent] = React.useState(null);
+    const composedRefs = (0, import_react_compose_refs.useComposedRefs)(forwardedRef, setContent);
+    const [arrow, setArrow] = React.useState(null);
+    const arrowSize = (0, import_react_use_size.useSize)(arrow);
+    const arrowWidth = arrowSize?.width ?? 0;
+    const arrowHeight = arrowSize?.height ?? 0;
+    const desiredPlacement = side + (align !== "center" ? "-" + align : "");
+    const collisionPadding = typeof collisionPaddingProp === "number" ? collisionPaddingProp : { top: 0, right: 0, bottom: 0, left: 0, ...collisionPaddingProp };
+    const boundary = Array.isArray(collisionBoundary) ? collisionBoundary : [collisionBoundary];
+    const hasExplicitBoundaries = boundary.length > 0;
+    const detectOverflowOptions = {
+      padding: collisionPadding,
+      boundary: boundary.filter(isNotNull),
+      // with `strategy: 'fixed'`, this is the only way to get it to respect boundaries
+      altBoundary: hasExplicitBoundaries
+    };
+    const { refs, floatingStyles, placement, isPositioned, middlewareData } = (0, import_react_dom.useFloating)({
+      // default to `fixed` strategy so users don't have to pick and we also avoid focus scroll issues
+      strategy: "fixed",
+      placement: desiredPlacement,
+      whileElementsMounted: /* @__PURE__ */ __name((...args) => {
+        const cleanup = (0, import_react_dom.autoUpdate)(...args, {
+          animationFrame: updatePositionStrategy === "always"
+        });
+        return cleanup;
+      }, "whileElementsMounted"),
+      elements: {
+        reference: context.anchor
+      },
+      middleware: [
+        (0, import_react_dom.offset)({ mainAxis: sideOffset + arrowHeight, alignmentAxis: alignOffset }),
+        avoidCollisions && (0, import_react_dom.shift)({
+          mainAxis: true,
+          crossAxis: false,
+          limiter: sticky === "partial" ? (0, import_react_dom.limitShift)() : void 0,
+          ...detectOverflowOptions
+        }),
+        avoidCollisions && (0, import_react_dom.flip)({ ...detectOverflowOptions }),
+        (0, import_react_dom.size)({
+          ...detectOverflowOptions,
+          apply: /* @__PURE__ */ __name(({ elements, rects, availableWidth, availableHeight }) => {
+            const { width: anchorWidth, height: anchorHeight } = rects.reference;
+            const contentStyle = elements.floating.style;
+            contentStyle.setProperty("--radix-popper-available-width", `${availableWidth}px`);
+            contentStyle.setProperty("--radix-popper-available-height", `${availableHeight}px`);
+            contentStyle.setProperty("--radix-popper-anchor-width", `${anchorWidth}px`);
+            contentStyle.setProperty("--radix-popper-anchor-height", `${anchorHeight}px`);
+          }, "apply")
+        }),
+        arrow && (0, import_react_dom.arrow)({ element: arrow, padding: arrowPadding }),
+        transformOrigin({ arrowWidth, arrowHeight }),
+        hideWhenDetached && (0, import_react_dom.hide)({
+          strategy: "referenceHidden",
+          ...detectOverflowOptions,
+          // `hide` detects whether the anchor (reference) is clipped, so when
+          // no explicit `collisionBoundary` is set we fall back to Floating
+          // UI's default clipping ancestors (e.g. a scrollable menu). This
+          // lets an occluded submenu hide once its anchor scrolls out of view
+          // (#3237). The collision/size middlewares deliberately keep the
+          // viewport-based default to avoid clamping content rendered inside
+          // transformed or overflow-clipping portal containers.
+          boundary: hasExplicitBoundaries ? detectOverflowOptions.boundary : void 0
+        })
+      ]
+    });
+    const setPlacementState = context.setPlacementState;
+    (0, import_react_use_layout_effect.useLayoutEffect)(() => {
+      setPlacementState(placement);
+      return () => {
+        setPlacementState(void 0);
+      };
+    }, [placement, setPlacementState]);
+    const [placedSide, placedAlign] = getSideAndAlignFromPlacement(placement);
+    const handlePlaced = (0, import_react_use_callback_ref.useCallbackRef)(onPlaced);
+    (0, import_react_use_layout_effect.useLayoutEffect)(() => {
+      if (isPositioned) {
+        handlePlaced?.();
+      }
+    }, [isPositioned, handlePlaced]);
+    const arrowX = middlewareData.arrow?.x;
+    const arrowY = middlewareData.arrow?.y;
+    const cannotCenterArrow = middlewareData.arrow?.centerOffset !== 0;
+    const [contentZIndex, setContentZIndex] = React.useState();
+    (0, import_react_use_layout_effect.useLayoutEffect)(() => {
+      if (content) setContentZIndex(window.getComputedStyle(content).zIndex);
+    }, [content]);
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      "div",
+      {
+        ref: refs.setFloating,
+        "data-radix-popper-content-wrapper": "",
         style: {
-          pointerEvents: isBodyPointerEventsDisabled ? isPointerEventsEnabled ? "auto" : "none" : void 0,
-          ...props.style
+          ...floatingStyles,
+          transform: isPositioned ? floatingStyles.transform : "translate(0, -200%)",
+          // keep off the page when measuring
+          minWidth: "max-content",
+          zIndex: contentZIndex,
+          "--radix-popper-transform-origin": [
+            middlewareData.transformOrigin?.x,
+            middlewareData.transformOrigin?.y
+          ].join(" "),
+          // hide the content if using the hide middleware and should be hidden
+          // set visibility to hidden and disable pointer events so the UI behaves
+          // as if the PopperContent isn't there at all
+          ...middlewareData.hide?.referenceHidden && {
+            visibility: "hidden",
+            pointerEvents: "none"
+          }
         },
-        onFocusCapture: (0, import_primitive.composeEventHandlers)(props.onFocusCapture, focusOutside.onFocusCapture),
-        onBlurCapture: (0, import_primitive.composeEventHandlers)(props.onBlurCapture, focusOutside.onBlurCapture),
-        onPointerDownCapture: (0, import_primitive.composeEventHandlers)(
-          props.onPointerDownCapture,
-          pointerDownOutside.onPointerDownCapture
+        dir: props.dir,
+        children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          PopperContentProvider,
+          {
+            scope: __scopePopper,
+            placedSide,
+            placedAlign,
+            onArrowChange: setArrow,
+            arrowX,
+            arrowY,
+            shouldHideArrow: cannotCenterArrow,
+            children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              import_react_primitive.Primitive.div,
+              {
+                "data-side": placedSide,
+                "data-align": placedAlign,
+                ...contentProps,
+                ref: composedRefs,
+                style: {
+                  ...contentProps.style,
+                  // if the PopperContent hasn't been placed yet (not all
+                  // measurements done) we prevent animations so that users'
+                  // animations don't kick in too early from the wrong sides.
+                  animation: !isPositioned ? "none" : contentProps.style?.animation
+                }
+              }
+            )
+          }
         )
       }
     );
-  }, "DismissableLayer")
+  }, "PopperContent")
 );
-var DismissableLayerBranch = /* @__PURE__ */ React.forwardRef(/* @__PURE__ */ __name(function DismissableLayerBranch2(props, forwardedRef) {
-  const context = React.useContext(DismissableLayerContext);
-  const ref = React.useRef(null);
-  const composedRefs = (0, import_react_compose_refs.useComposedRefs)(forwardedRef, ref);
-  React.useEffect(() => {
-    const node = ref.current;
-    if (node) {
-      context.branches.add(node);
-      return () => {
-        context.branches.delete(node);
-      };
-    }
-  }, [context.branches]);
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_react_primitive.Primitive.div, { ...props, ref: composedRefs });
-}, "DismissableLayerBranch"));
-function useDismissableLayerSurface() {
-  const context = React.useContext(DismissableLayerContext);
-  const [node, setNode] = React.useState(null);
-  React.useEffect(() => {
-    if (!node) {
-      return;
-    }
-    context.dismissableSurfaces.add(node);
-    return () => {
-      context.dismissableSurfaces.delete(node);
-    };
-  }, [node, context.dismissableSurfaces]);
-  return setNode;
-}
-__name(useDismissableLayerSurface, "useDismissableLayerSurface");
-var IS_TRUE = /* @__PURE__ */ __name(() => true, "IS_TRUE");
-function usePointerDownOutside(onPointerDownOutside, args) {
-  const {
-    ownerDocument = globalThis?.document,
-    deferPointerDownOutside = false,
-    isDeferredPointerDownOutsideRef,
-    dismissableSurfaces,
-    shouldHandlePointerDownOutside = IS_TRUE
-  } = args;
-  const handlePointerDownOutside = (0, import_react_use_callback_ref.useCallbackRef)(onPointerDownOutside);
-  const isPointerInsideReactTreeRef = React.useRef(false);
-  const isPointerDownOutsideRef = React.useRef(false);
-  const interceptedOutsideInteractionEventsRef = React.useRef(/* @__PURE__ */ new Map());
-  const handleClickRef = React.useRef(() => {
-  });
-  React.useEffect(() => {
-    function resetOutsideInteraction() {
-      isPointerDownOutsideRef.current = false;
-      isDeferredPointerDownOutsideRef.current = false;
-      interceptedOutsideInteractionEventsRef.current.clear();
-    }
-    __name(resetOutsideInteraction, "resetOutsideInteraction");
-    function isOutsideInteractionIntercepted() {
-      return Array.from(interceptedOutsideInteractionEventsRef.current.values()).some(Boolean);
-    }
-    __name(isOutsideInteractionIntercepted, "isOutsideInteractionIntercepted");
-    function handleInteractionCapture(event) {
-      if (!isPointerDownOutsideRef.current) {
-        return;
-      }
-      const target = event.target;
-      const isDismissableSurface = target instanceof Node && [...dismissableSurfaces].some((surface) => surface.contains(target));
-      if (!isDismissableSurface) {
-        interceptedOutsideInteractionEventsRef.current.set(event.type, true);
-      }
-      if (event.type === "click") {
-        window.setTimeout(() => {
-          if (isPointerDownOutsideRef.current) {
-            handleClickRef.current();
-          }
-        }, 0);
-      }
-    }
-    __name(handleInteractionCapture, "handleInteractionCapture");
-    function handleInteractionBubble(event) {
-      if (isPointerDownOutsideRef.current) {
-        interceptedOutsideInteractionEventsRef.current.set(event.type, false);
-      }
-    }
-    __name(handleInteractionBubble, "handleInteractionBubble");
-    const handlePointerDown = /* @__PURE__ */ __name((event) => {
-      if (event.target && !isPointerInsideReactTreeRef.current) {
-        let handleAndDispatchPointerDownOutsideEvent2 = function() {
-          ownerDocument.removeEventListener("click", handleClickRef.current);
-          const wasOutsideInteractionIntercepted = isOutsideInteractionIntercepted();
-          resetOutsideInteraction();
-          if (!wasOutsideInteractionIntercepted) {
-            handleAndDispatchCustomEvent(
-              POINTER_DOWN_OUTSIDE,
-              handlePointerDownOutside,
-              eventDetail,
-              { discrete: true }
-            );
-          }
-        };
-        var handleAndDispatchPointerDownOutsideEvent = handleAndDispatchPointerDownOutsideEvent2;
-        __name(handleAndDispatchPointerDownOutsideEvent2, "handleAndDispatchPointerDownOutsideEvent");
-        if (!shouldHandlePointerDownOutside(event.target)) {
-          ownerDocument.removeEventListener("click", handleClickRef.current);
-          resetOutsideInteraction();
-          isPointerInsideReactTreeRef.current = false;
-          return;
+var ARROW_NAME = "PopperArrow";
+var OPPOSITE_SIDE = {
+  top: "bottom",
+  right: "left",
+  bottom: "top",
+  left: "right"
+};
+var PopperArrow = /* @__PURE__ */ React.forwardRef(
+  /* @__PURE__ */ __name(function PopperArrow2(props, forwardedRef) {
+    const { __scopePopper, ...arrowProps } = props;
+    const contentContext = useContentContext(ARROW_NAME, __scopePopper);
+    const baseSide = OPPOSITE_SIDE[contentContext.placedSide];
+    return (
+      // we have to use an extra wrapper because `ResizeObserver` (used by `useSize`)
+      // doesn't report size as we'd expect on SVG elements.
+      // it reports their bounding box which is effectively the largest path inside the SVG.
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "span",
+        {
+          ref: contentContext.onArrowChange,
+          style: {
+            position: "absolute",
+            left: contentContext.arrowX,
+            top: contentContext.arrowY,
+            [baseSide]: 0,
+            transformOrigin: {
+              top: "",
+              right: "0 0",
+              bottom: "center 0",
+              left: "100% 0"
+            }[contentContext.placedSide],
+            transform: {
+              top: "translateY(100%)",
+              right: "translateY(50%) rotate(90deg) translateX(-50%)",
+              bottom: `rotate(180deg)`,
+              left: "translateY(50%) rotate(-90deg) translateX(50%)"
+            }[contentContext.placedSide],
+            visibility: contentContext.shouldHideArrow ? "hidden" : void 0
+          },
+          children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            ArrowPrimitive.Root,
+            {
+              ...arrowProps,
+              ref: forwardedRef,
+              style: {
+                ...arrowProps.style,
+                // ensures the element can be measured correctly (mostly for if SVG)
+                display: "block"
+              }
+            }
+          )
         }
-        const eventDetail = { originalEvent: event };
-        isPointerDownOutsideRef.current = true;
-        isDeferredPointerDownOutsideRef.current = deferPointerDownOutside && event.button === 0;
-        interceptedOutsideInteractionEventsRef.current.clear();
-        if (!deferPointerDownOutside || event.button !== 0) {
-          handleAndDispatchPointerDownOutsideEvent2();
-        } else {
-          ownerDocument.removeEventListener("click", handleClickRef.current);
-          handleClickRef.current = handleAndDispatchPointerDownOutsideEvent2;
-          ownerDocument.addEventListener("click", handleClickRef.current, { once: true });
-        }
-      } else {
-        ownerDocument.removeEventListener("click", handleClickRef.current);
-        resetOutsideInteraction();
-      }
-      isPointerInsideReactTreeRef.current = false;
-    }, "handlePointerDown");
-    const outsideInteractionEvents = [
-      "pointerup",
-      "mousedown",
-      "mouseup",
-      "touchstart",
-      "touchend",
-      "click"
-    ];
-    for (const eventName of outsideInteractionEvents) {
-      ownerDocument.addEventListener(eventName, handleInteractionCapture, true);
-      ownerDocument.addEventListener(eventName, handleInteractionBubble);
+      )
+    );
+  }, "PopperArrow")
+);
+function isNotNull(value) {
+  return value !== null;
+}
+__name(isNotNull, "isNotNull");
+var transformOrigin = /* @__PURE__ */ __name((options) => ({
+  name: "transformOrigin",
+  options,
+  fn(data) {
+    const { placement, rects, middlewareData } = data;
+    const cannotCenterArrow = middlewareData.arrow?.centerOffset !== 0;
+    const isArrowHidden = cannotCenterArrow;
+    const arrowWidth = isArrowHidden ? 0 : options.arrowWidth;
+    const arrowHeight = isArrowHidden ? 0 : options.arrowHeight;
+    const [placedSide, placedAlign] = getSideAndAlignFromPlacement(placement);
+    const noArrowAlign = { start: "0%", center: "50%", end: "100%" }[placedAlign];
+    const arrowXCenter = (middlewareData.arrow?.x ?? 0) + arrowWidth / 2;
+    const arrowYCenter = (middlewareData.arrow?.y ?? 0) + arrowHeight / 2;
+    let x = "";
+    let y = "";
+    if (placedSide === "bottom") {
+      x = isArrowHidden ? noArrowAlign : `${arrowXCenter}px`;
+      y = `${-arrowHeight}px`;
+    } else if (placedSide === "top") {
+      x = isArrowHidden ? noArrowAlign : `${arrowXCenter}px`;
+      y = `${rects.floating.height + arrowHeight}px`;
+    } else if (placedSide === "right") {
+      x = `${-arrowHeight}px`;
+      y = isArrowHidden ? noArrowAlign : `${arrowYCenter}px`;
+    } else if (placedSide === "left") {
+      x = `${rects.floating.width + arrowHeight}px`;
+      y = isArrowHidden ? noArrowAlign : `${arrowYCenter}px`;
     }
-    const timerId = window.setTimeout(() => {
-      ownerDocument.addEventListener("pointerdown", handlePointerDown);
-    }, 0);
-    return () => {
-      window.clearTimeout(timerId);
-      ownerDocument.removeEventListener("pointerdown", handlePointerDown);
-      ownerDocument.removeEventListener("click", handleClickRef.current);
-      for (const eventName of outsideInteractionEvents) {
-        ownerDocument.removeEventListener(eventName, handleInteractionCapture, true);
-        ownerDocument.removeEventListener(eventName, handleInteractionBubble);
-      }
-    };
-  }, [
-    ownerDocument,
-    handlePointerDownOutside,
-    deferPointerDownOutside,
-    isDeferredPointerDownOutsideRef,
-    dismissableSurfaces,
-    shouldHandlePointerDownOutside
-  ]);
-  return {
-    // ensures we check React component tree (not just DOM tree)
-    onPointerDownCapture: /* @__PURE__ */ __name(() => isPointerInsideReactTreeRef.current = true, "onPointerDownCapture")
-  };
-}
-__name(usePointerDownOutside, "usePointerDownOutside");
-function useFocusOutside(onFocusOutside, ownerDocument = globalThis?.document) {
-  const handleFocusOutside = (0, import_react_use_callback_ref.useCallbackRef)(onFocusOutside);
-  const isFocusInsideReactTreeRef = React.useRef(false);
-  React.useEffect(() => {
-    const handleFocus = /* @__PURE__ */ __name((event) => {
-      if (event.target && !isFocusInsideReactTreeRef.current) {
-        const eventDetail = { originalEvent: event };
-        handleAndDispatchCustomEvent(FOCUS_OUTSIDE, handleFocusOutside, eventDetail, {
-          discrete: false
-        });
-      }
-    }, "handleFocus");
-    ownerDocument.addEventListener("focusin", handleFocus);
-    return () => ownerDocument.removeEventListener("focusin", handleFocus);
-  }, [ownerDocument, handleFocusOutside]);
-  return {
-    onFocusCapture: /* @__PURE__ */ __name(() => isFocusInsideReactTreeRef.current = true, "onFocusCapture"),
-    onBlurCapture: /* @__PURE__ */ __name(() => isFocusInsideReactTreeRef.current = false, "onBlurCapture")
-  };
-}
-__name(useFocusOutside, "useFocusOutside");
-function dispatchUpdate() {
-  const event = new CustomEvent(CONTEXT_UPDATE);
-  document.dispatchEvent(event);
-}
-__name(dispatchUpdate, "dispatchUpdate");
-function handleAndDispatchCustomEvent(name, handler, detail, { discrete }) {
-  const target = detail.originalEvent.target;
-  const event = new CustomEvent(name, { bubbles: false, cancelable: true, detail });
-  if (handler) target.addEventListener(name, handler, { once: true });
-  if (discrete) {
-    (0, import_react_primitive.dispatchDiscreteCustomEvent)(target, event);
-  } else {
-    target.dispatchEvent(event);
+    return { data: { x, y } };
   }
+}), "transformOrigin");
+function getSideAndAlignFromPlacement(placement) {
+  const [side, align = "center"] = placement.split("-");
+  return [side, align];
 }
-__name(handleAndDispatchCustomEvent, "handleAndDispatchCustomEvent");
-var Root = DismissableLayer;
-var Branch = DismissableLayerBranch;
+__name(getSideAndAlignFromPlacement, "getSideAndAlignFromPlacement");
+var Root2 = Popper;
+var Anchor = PopperAnchor;
+var Content = PopperContent;
+var Arrow = PopperArrow;
 //# sourceMappingURL=index.js.map
