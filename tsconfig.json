@@ -1,13 +1,8 @@
 {
-  "files": ["src/hfs-types.ts"],
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "declaration": true,
-    "emitDeclarationOnly": true,
-    "allowJs": true,
-    "checkJs": true,
-    "outDir": "dist",
-    "target": "ES2022",
-    "moduleResolution": "NodeNext",
-    "module": "NodeNext"
-  }
+    "outDir": "./dist-ts",
+    "rootDir": "."
+  },
+  "include": ["src", "*.config.ts", "*.config.js", "package.json"]
 }
