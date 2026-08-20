@@ -1,131 +1,195 @@
-import { Document } from "../dom/interfaces";
 /**
- * Represents a parser for XML and HTML content.
- *
- * See: https://w3c.github.io/DOM-Parsing/#the-domparser-interface
+ * Represents an URL.
  */
-export interface DOMParser {
+export interface URL {
     /**
-     * Parses the given string and returns a document object.
+     * Gets the serialization of url.
+     */
+    readonly href: string;
+    /**
+     * Gets the serialization of url's origin.
+     */
+    readonly origin: string;
+    /**
+     * Gets or sets the url's scheme, followed by `":"`.
+     */
+    protocol: string;
+    /**
+     * Gets or sets the url's username.
+     */
+    username: string;
+    /**
+     * Gets or sets the url's password.
+     */
+    password: string;
+    /**
+     * Gets or sets the url's host.
+     */
+    host: string;
+    /**
+     * Gets or sets the url's hostname.
+     */
+    hostname: string;
+    /**
+     * Gets or sets the url's port.
+     */
+    port: string;
+    /**
+     * Gets or sets the url's path name.
+     */
+    pathname: string;
+    /**
+     * Gets or sets the url's query string.
+     */
+    search: string;
+    /**
+     * Gets the url's query parameters.
+     */
+    readonly searchParams: URLSearchParams;
+    /**
+     * Gets or sets the url's hash.
+     */
+    hash: string;
+    /**
+     * Returns the serialization of url.
+     */
+    toJSON(): string;
+    _url: URLRecord;
+    _queryObject: URLSearchParams;
+}
+/**
+ * Represents an URL record.
+ */
+export interface URLRecord {
+    /**
+     * The type of URL
+     */
+    scheme: string;
+    /**
+     * Username
+     */
+    username: string;
+    /**
+     * Password
+     */
+    password: string;
+    /**
+     * Host
+     */
+    host: Host | null;
+    /**
+     * Port
+     */
+    port: number | null;
+    /**
+     * Path
+     */
+    path: string[];
+    /**
+     * Query string
+     */
+    query: string | null;
+    /**
+     * Fragment
+     */
+    fragment: string | null;
+    _cannotBeABaseURLFlag: boolean;
+    _blobURLEntry: any | null;
+}
+/**
+ * Represents URL query parameters.
+ */
+export interface URLSearchParams extends Iterable<[string, string]> {
+    /**
+     * Appends a new name/value pair to the query parameters.
      *
-     * @param source - the string containing the document tree.
-     * @param mimeType - the mime type of the document
+     * @param name - query string name
+     * @param value - query string value
      */
-    parseFromString(source: string, mimeType: MimeType): Document;
-}
-/**
- * Defines the mime type of the document.
- */
-export type MimeType = 'text/html' | 'text/xml' | 'application/xml' | 'application/xhtml+xml' | 'image/svg+xml';
-/**
- * Represents a token.
- */
-export interface XMLToken {
+    append(name: string, value: string): void;
     /**
-     * Token type.
+     * Removes all query parameters with the given name.
+     *
+     * @param name - query string name
      */
-    readonly type: TokenType;
-}
-/**
- * Represents an end-of-file token.
- */
-export interface EOFToken extends XMLToken {
-    readonly type: TokenType.EOF;
-}
-/**
- * Represents an XML declaration token.
- */
-export interface DeclarationToken extends XMLToken {
-    readonly type: TokenType.Declaration;
-    readonly version: string;
-    readonly encoding: string;
-    readonly standalone: string;
-}
-/**
- * Represents a DocType token.
- */
-export interface DocTypeToken extends XMLToken {
-    readonly type: TokenType.DocType;
-    readonly name: string;
-    readonly pubId: string;
-    readonly sysId: string;
-}
-/**
- * Represents a character data token.
- */
-export interface CharacterDataToken extends XMLToken {
-    readonly data: string;
-}
-/**
- * Represents a comment token.
- */
-export interface CommentToken extends CharacterDataToken {
-    readonly type: TokenType.Comment;
-}
-/**
- * Represents a CDATA token.
- */
-export interface CDATAToken extends CharacterDataToken {
-    readonly type: TokenType.CDATA;
-}
-/**
- * Represents a text token.
- */
-export interface TextToken extends CharacterDataToken {
-    readonly type: TokenType.Text;
-}
-/**
- * Represents a processing instruction token.
- */
-export interface PIToken extends CharacterDataToken {
-    readonly type: TokenType.PI;
-    readonly target: string;
-}
-/**
- * Represents an element token.
- */
-export interface ElementToken extends XMLToken {
-    readonly type: TokenType.Element;
-    readonly name: string;
-    readonly attributes: Array<[string, string]>;
-    readonly selfClosing: boolean;
-}
-/**
- * Represents a closing tag token.
- */
-export interface ClosingTagToken extends XMLToken {
-    readonly type: TokenType.ClosingTag;
-    readonly name: string;
-}
-/**
- * Represents a lexer for XML content.
- */
-export interface XMLLexer extends Iterable<XMLToken> {
+    delete(name: string): void;
     /**
-     * Returns the next token.
+     * Gets the value of the first query parameter with the given name.
+     *
+     * @param name - query string name
      */
-    nextToken(): XMLToken;
-}
-/**
- * Defines lexer options.
- */
-export type XMLLexerOptions = {
+    get(name: string): string | null;
     /**
-     * Determines whether whitespace-only text nodes are skipped or not.
+     * Gets the values of all query parameters with the given name.
+     *
+     * @param name - query string name
      */
-    skipWhitespaceOnlyText: boolean;
-};
-/**
- * Defines the type of a token.
- */
-export declare enum TokenType {
-    EOF = 0,
-    Declaration = 1,
-    DocType = 2,
-    Element = 3,
-    Text = 4,
-    CDATA = 5,
-    PI = 6,
-    Comment = 7,
-    ClosingTag = 8
+    getAll(name: string): string[];
+    /**
+     * Determines whether a query parameter with the given name exists.
+     *
+     * @param name - query string name
+     */
+    has(name: string): boolean;
+    /**
+     * Replaces all query parameter with the given name with the given value.
+     *
+     * @param name - query string name
+     * @param value - query string value
+     */
+    set(name: string, value: string): void;
+    /**
+     * Sorts all query parameters with their name.
+     */
+    sort(): void;
+    /**
+     * Converts query parameters to a string.
+     */
+    toString(): string;
+    _list: [string, string][];
+    _urlObject: URL | null;
 }
+/**
+ * Represents the state of the URL parser.
+ */
+export declare enum ParserState {
+    SchemeStart = 0,
+    Scheme = 1,
+    NoScheme = 2,
+    SpecialRelativeOrAuthority = 3,
+    PathOrAuthority = 4,
+    Relative = 5,
+    RelativeSlash = 6,
+    SpecialAuthoritySlashes = 7,
+    SpecialAuthorityIgnoreSlashes = 8,
+    Authority = 9,
+    Host = 10,
+    Hostname = 11,
+    Port = 12,
+    File = 13,
+    FileSlash = 14,
+    FileHost = 15,
+    PathStart = 16,
+    Path = 17,
+    CannotBeABaseURLPath = 18,
+    Query = 19,
+    Fragment = 20
+}
+/**
+ * Represents an URL's host as either of:
+ * - a domain as a string
+ * - an IPv4 address as a number
+ * - an IPv6 address as a list of eight numbers
+ * - an opaque host as a string
+ * - or an empty host the an empty string `""`
+ */
+export type Host = string | number | number[];
+/**
+ * Represents an origin as a tuple of:
+ * - A scheme (a scheme).
+ * - A host (a host).
+ * - A port (a port).
+ * - A domain (null or a domain). Null unless stated otherwise.
+ */
+export type Origin = [string, Host, number | null, string | null];
+export declare const OpaqueOrigin: Origin;

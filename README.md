@@ -1,14 +1,25 @@
-# @lovable.dev/vite-tanstack-config
+# URL
+A Javascript implementation of the [URL Living Standard](https://url.spec.whatwg.org/).
 
-Vite config wrapper for Lovable TanStack Start projects.
+[![License](http://img.shields.io/npm/l/@oozcitak/url.svg?style=flat-square)](http://opensource.org/licenses/MIT)
+[![NPM Version](http://img.shields.io/npm/v/@oozcitak/url.svg?style=flat-square)](https://www.npmjs.com/package/@oozcitak/url)
 
-## What It Does
+[![Node.js CI](https://github.com/oozcitak/url/workflows/build/badge.svg)](https://github.com/oozcitak/url/actions)
+[![Code Coverage](https://codecov.io/gh/oozcitak/url/branch/master/graph/badge.svg)](https://codecov.io/gh/oozcitak/url)
 
-- Gives TanStack Start projects a single `defineConfig` helper for local preview and production builds.
-- Keeps Lovable sandbox previews predictable by setting the server shape, watched paths, HMR coordination, and asset routing expected by the platform.
-- Adds diagnostics that help the preview tell build, Vite, SSR, and app errors apart.
-- Produces deployable build output for Lovable while still letting self-hosted projects choose their own target.
+# Version
+Current version implements the standard as of commit [7ae1c69](https://url.spec.whatwg.org/commit-snapshots/7ae1c691c96f0d82fafa24c33aa1e8df9ffbf2bc/).
 
-## Customization
+# Installation
+```
+npm install @oozcitak/url
+```
 
-Apps can pass through Vite options and adjust the React, TanStack Start, Nitro, HMR gate, and error-logging behavior when they need to.
+# Usage
+Create an instance of the `URL` or `URLSearchParams` classes.
+
+```js
+const { URL } = require("@oozcitak/url");
+
+const url = new URL("https://example.org/file.aspx")
+```
