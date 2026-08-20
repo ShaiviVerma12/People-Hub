@@ -1,98 +1,223 @@
-import { AnyRouter, Constrain, LinkOptions, RegisteredRouter, RoutePaths } from '@tanstack/router-core';
-import { ReactNode } from 'react';
-import { ValidateLinkOptions, ValidateLinkOptionsArray } from './typePrimitives.js';
-import * as React from 'react';
+import { HistoryState, ParsedHistoryState } from '@tanstack/history';
+import { AllParams, CatchAllPaths, CurrentPath, FullSearchSchema, FullSearchSchemaInput, ParentPath, RouteByPath, RouteByToPath, RoutePaths, RouteToPath, ToPath } from './routeInfo.js';
+import { AnyRouter, RegisteredRouter, ViewTransitionOptions } from './router.js';
+import { ConstrainLiteral, Expand, MakeDifferenceOptional, NoInfer, NonNullableUpdater, Updater } from './utils.js';
+import { ParsedLocation } from './location.js';
+export type IsRequiredParams<TParams> = Record<never, never> extends TParams ? never : true;
+export interface ParsePathParamsResult<in out TRequired, in out TOptional, in out TRest> {
+    required: TRequired;
+    optional: TOptional;
+    rest: TRest;
+}
+export type AnyParsePathParamsResult = ParsePathParamsResult<string, string, string>;
+export type ParsePathParamsBoundaryStart<T extends string> = T extends `${infer TLeft}{-${infer TRight}` ? ParsePathParamsResult<ParsePathParams<TLeft>['required'], ParsePathParams<TLeft>['optional'] | ParsePathParams<TRight>['required'] | ParsePathParams<TRight>['optional'], ParsePathParams<TRight>['rest']> : T extends `${infer TLeft}{${infer TRight}` ? ParsePathParamsResult<ParsePathParams<TLeft>['required'] | ParsePathParams<TRight>['required'], ParsePathParams<TLeft>['optional'] | ParsePathParams<TRight>['optional'], ParsePathParams<TRight>['rest']> : never;
+export type ParsePathParamsSymbol<T extends string> = T extends `${string}$${infer TRight}` ? TRight extends `${string}/${string}` ? TRight extends `${infer TParam}/${infer TRest}` ? TParam extends '' ? ParsePathParamsResult<ParsePathParams<TRest>['required'], '_splat' | ParsePathParams<TRest>['optional'], ParsePathParams<TRest>['rest']> : ParsePathParamsResult<TParam | ParsePathParams<TRest>['required'], ParsePathParams<TRest>['optional'], ParsePathParams<TRest>['rest']> : never : TRight extends '' ? ParsePathParamsResult<never, '_splat', never> : ParsePathParamsResult<TRight, never, never> : never;
+export type ParsePathParamsBoundaryEnd<T extends string> = T extends `${infer TLeft}}${infer TRight}` ? ParsePathParamsResult<ParsePathParams<TLeft>['required'] | ParsePathParams<TRight>['required'], ParsePathParams<TLeft>['optional'] | ParsePathParams<TRight>['optional'], ParsePathParams<TRight>['rest']> : never;
+export type ParsePathParamsEscapeStart<T extends string> = T extends `${infer TLeft}[${infer TRight}` ? ParsePathParamsResult<ParsePathParams<TLeft>['required'] | ParsePathParams<TRight>['required'], ParsePathParams<TLeft>['optional'] | ParsePathParams<TRight>['optional'], ParsePathParams<TRight>['rest']> : never;
+export type ParsePathParamsEscapeEnd<T extends string> = T extends `${string}]${infer TRight}` ? ParsePathParams<TRight> : never;
+export type ParsePathParams<T extends string> = T extends `${string}[${string}` ? ParsePathParamsEscapeStart<T> : T extends `${string}]${string}` ? ParsePathParamsEscapeEnd<T> : T extends `${string}}${string}` ? ParsePathParamsBoundaryEnd<T> : T extends `${string}{${string}` ? ParsePathParamsBoundaryStart<T> : T extends `${string}$${string}` ? ParsePathParamsSymbol<T> : never;
+export type AddTrailingSlash<T> = T extends `${string}/` ? T : `${T & string}/`;
+export type RemoveTrailingSlashes<T> = T & `${string}/` extends never ? T : T extends `${infer R}/` ? R : T;
+export type AddLeadingSlash<T> = T & `/${string}` extends never ? `/${T & string}` : T;
+export type RemoveLeadingSlashes<T> = T & `/${string}` extends never ? T : T extends `/${infer R}` ? R : T;
+type JoinPath<TLeft extends string, TRight extends string> = TRight extends '' ? TLeft : TLeft extends '' ? TRight : `${RemoveTrailingSlashes<TLeft>}/${RemoveLeadingSlashes<TRight>}`;
+type RemoveLastSegment<T extends string, TAcc extends string = ''> = T extends `${infer TSegment}/${infer TRest}` ? TRest & `${string}/${string}` extends never ? TRest extends '' ? TAcc : `${TAcc}${TSegment}` : RemoveLastSegment<TRest, `${TAcc}${TSegment}/`> : TAcc;
+export type ResolveCurrentPath<TFrom extends string, TTo extends string> = TTo extends '.' ? TFrom : TTo extends './' ? AddTrailingSlash<TFrom> : TTo & `./${string}` extends never ? never : TTo extends `./${infer TRest}` ? AddLeadingSlash<JoinPath<TFrom, TRest>> : never;
+export type ResolveParentPath<TFrom extends string, TTo extends string> = TTo extends '../' | '..' ? TFrom extends '' | '/' ? never : AddLeadingSlash<RemoveLastSegment<TFrom>> : TTo & `../${string}` extends never ? AddLeadingSlash<JoinPath<TFrom, TTo>> : TFrom extends '' | '/' ? never : TTo extends `../${infer ToRest}` ? ResolveParentPath<RemoveLastSegment<TFrom>, ToRest> : AddLeadingSlash<JoinPath<TFrom, TTo>>;
+export type ResolveRelativePath<TFrom, TTo = '.'> = string extends TFrom ? TTo : string extends TTo ? TFrom : undefined extends TTo ? TFrom : TTo extends string ? TFrom extends string ? TTo extends `/${string}` ? TTo : TTo extends `..${string}` ? ResolveParentPath<TFrom, TTo> : TTo extends `.${string}` ? ResolveCurrentPath<TFrom, TTo> : AddLeadingSlash<JoinPath<TFrom, TTo>> : never : never;
+export type FindDescendantToPaths<TRouter extends AnyRouter, TPrefix extends string> = `${TPrefix}/${string}` & RouteToPath<TRouter>;
+export type InferDescendantToPaths<TRouter extends AnyRouter, TPrefix extends string, TPaths = FindDescendantToPaths<TRouter, TPrefix>> = TPaths extends `${TPrefix}/` ? never : TPaths extends `${TPrefix}/${infer TRest}` ? TRest : never;
+export type RelativeToPath<TRouter extends AnyRouter, TTo extends string, TResolvedPath extends string> = (TResolvedPath & RouteToPath<TRouter> extends never ? never : ToPath<TRouter, TTo>) | `${RemoveTrailingSlashes<TTo>}/${InferDescendantToPaths<TRouter, RemoveTrailingSlashes<TResolvedPath>>}`;
+export type RelativeToParentPath<TRouter extends AnyRouter, TFrom extends string, TTo extends string, TResolvedPath extends string = ResolveRelativePath<TFrom, TTo>> = RelativeToPath<TRouter, TTo, TResolvedPath> | (TTo extends `${string}..` | `${string}../` ? TResolvedPath extends '/' | '' ? never : FindDescendantToPaths<TRouter, RemoveTrailingSlashes<TResolvedPath>> extends never ? never : `${RemoveTrailingSlashes<TTo>}/${ParentPath<TRouter>}` : never);
+export type RelativeToCurrentPath<TRouter extends AnyRouter, TFrom extends string, TTo extends string, TResolvedPath extends string = ResolveRelativePath<TFrom, TTo>> = RelativeToPath<TRouter, TTo, TResolvedPath> | CurrentPath<TRouter>;
+export type AbsoluteToPath<TRouter extends AnyRouter, TFrom extends string> = (string extends TFrom ? CurrentPath<TRouter> : TFrom extends `/` ? never : CurrentPath<TRouter>) | (string extends TFrom ? ParentPath<TRouter> : TFrom extends `/` ? never : ParentPath<TRouter>) | RouteToPath<TRouter> | (TFrom extends '/' ? never : string extends TFrom ? never : InferDescendantToPaths<TRouter, RemoveTrailingSlashes<TFrom>>);
+export type RelativeToPathAutoComplete<TRouter extends AnyRouter, TFrom extends string, TTo extends string> = string extends TTo ? string : string extends TFrom ? AbsoluteToPath<TRouter, TFrom> : TTo & `..${string}` extends never ? TTo & `.${string}` extends never ? AbsoluteToPath<TRouter, TFrom> : RelativeToCurrentPath<TRouter, TFrom, TTo> : RelativeToParentPath<TRouter, TFrom, TTo>;
+export type NavigateOptions<TRouter extends AnyRouter = RegisteredRouter, TFrom extends string = string, TTo extends string | undefined = '.', TMaskFrom extends string = TFrom, TMaskTo extends string = '.'> = ToOptions<TRouter, TFrom, TTo, TMaskFrom, TMaskTo> & NavigateOptionProps;
 /**
- * Build anchor-like props for declarative navigation and preloading.
- *
- * Returns stable `href`, event handlers and accessibility props derived from
- * router options and active state. Used internally by `Link` and custom links.
- *
- * Options cover `to`, `params`, `search`, `hash`, `state`, `preload`,
- * `activeProps`, `inactiveProps`, and more.
- *
- * @returns React anchor props suitable for `<a>` or custom components.
- * @link https://tanstack.com/router/latest/docs/framework/react/api/router/useLinkPropsHook
+ * The NavigateOptions type is used to describe the options that can be used when describing a navigation action in TanStack Router.
+ * @link [API Docs](https://tanstack.com/router/latest/docs/framework/react/api/router/NavigateOptionsType)
  */
-export declare function useLinkProps<TRouter extends AnyRouter = RegisteredRouter, const TFrom extends string = string, const TTo extends string | undefined = undefined, const TMaskFrom extends string = TFrom, const TMaskTo extends string = ''>(options: UseLinkPropsOptions<TRouter, TFrom, TTo, TMaskFrom, TMaskTo>, forwardedRef?: React.ForwardedRef<Element>): React.ComponentPropsWithRef<'a'>;
-type UseLinkReactProps<TComp> = TComp extends keyof React.JSX.IntrinsicElements ? React.JSX.IntrinsicElements[TComp] : TComp extends React.ComponentType<any> ? React.ComponentPropsWithoutRef<TComp> & React.RefAttributes<React.ComponentRef<TComp>> : never;
-export type UseLinkPropsOptions<TRouter extends AnyRouter = RegisteredRouter, TFrom extends RoutePaths<TRouter['routeTree']> | string = string, TTo extends string | undefined = '.', TMaskFrom extends RoutePaths<TRouter['routeTree']> | string = TFrom, TMaskTo extends string = '.'> = ActiveLinkOptions<'a', TRouter, TFrom, TTo, TMaskFrom, TMaskTo> & UseLinkReactProps<'a'>;
-export type ActiveLinkOptions<TComp = 'a', TRouter extends AnyRouter = RegisteredRouter, TFrom extends string = string, TTo extends string | undefined = '.', TMaskFrom extends string = TFrom, TMaskTo extends string = '.'> = LinkOptions<TRouter, TFrom, TTo, TMaskFrom, TMaskTo> & ActiveLinkOptionProps<TComp>;
-type ActiveLinkProps<TComp> = Partial<LinkComponentReactProps<TComp> & {
-    [key: `data-${string}`]: unknown;
-}>;
-export interface ActiveLinkOptionProps<TComp = 'a'> {
+export interface NavigateOptionProps {
     /**
-     * A function that returns additional props for the `active` state of this link.
-     * These props override other props passed to the link (`style`'s are merged, `className`'s are concatenated)
+     * If set to `true`, the router will scroll the element with an id matching the hash into view with default `ScrollIntoViewOptions`.
+     * If set to `false`, the router will not scroll the element with an id matching the hash into view.
+     * If set to `ScrollIntoViewOptions`, the router will scroll the element with an id matching the hash into view with the provided options.
+     * @default true
+     * @link [API Docs](https://tanstack.com/router/latest/docs/framework/react/api/router/NavigateOptionsType#hashscrollintoview)
+     * @see [MDN](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView)
      */
-    activeProps?: ActiveLinkProps<TComp> | (() => ActiveLinkProps<TComp>);
+    hashScrollIntoView?: boolean | ScrollIntoViewOptions;
     /**
-     * A function that returns additional props for the `inactive` state of this link.
-     * These props override other props passed to the link (`style`'s are merged, `className`'s are concatenated)
+     * `replace` is a boolean that determines whether the navigation should replace the current history entry or push a new one.
+     * @default false
+     * @link [API Docs](https://tanstack.com/router/latest/docs/framework/react/api/router/NavigateOptionsType#replace)
      */
-    inactiveProps?: ActiveLinkProps<TComp> | (() => ActiveLinkProps<TComp>);
+    replace?: boolean;
+    /**
+     * Defaults to `true` so that the scroll position will be reset to 0,0 after the location is committed to the browser history.
+     * If `false`, the scroll position will not be reset to 0,0 after the location is committed to history.
+     * @default true
+     * @link [API Docs](https://tanstack.com/router/latest/docs/framework/react/api/router/NavigateOptionsType#resetscroll)
+     */
+    resetScroll?: boolean;
+    /** @deprecated All navigations now use startTransition under the hood */
+    startTransition?: boolean;
+    /**
+     * If set to `true`, the router will wrap the resulting navigation in a `document.startViewTransition()` call.
+     * If `ViewTransitionOptions`, route navigations will be called using `document.startViewTransition({update, types})`
+     * where `types` will be the strings array passed with `ViewTransitionOptions["types"]`.
+     * If the browser does not support viewTransition types, the navigation will fall back to normal `document.startTransition()`, same as if `true` was passed.
+     *
+     * If the browser does not support this api, this option will be ignored.
+     * @default false
+     * @link [API Docs](https://tanstack.com/router/latest/docs/framework/react/api/router/NavigateOptionsType#viewtransition)
+     * @see [MDN](https://developer.mozilla.org/en-US/docs/Web/API/Document/startViewTransition)
+     * @see [Google](https://developer.chrome.com/docs/web-platform/view-transitions/same-document#view-transition-types)
+     */
+    viewTransition?: boolean | ViewTransitionOptions;
+    /**
+     * If `true`, navigation will ignore any blockers that might prevent it.
+     * @default false
+     * @link [API Docs](https://tanstack.com/router/latest/docs/framework/react/api/router/NavigateOptionsType#ignoreblocker)
+     */
+    ignoreBlocker?: boolean;
+    /**
+     * If `true`, navigation to a route inside of router will trigger a full page load instead of the traditional SPA navigation.
+     * @default false
+     * @link [API Docs](https://tanstack.com/router/latest/docs/framework/react/api/router/NavigateOptionsType#reloaddocument)
+     */
+    reloadDocument?: boolean;
+    /**
+     * This can be used instead of `to` to navigate to a fully built href, e.g. pointing to an external target.
+     * @link [API Docs](https://tanstack.com/router/latest/docs/framework/react/api/router/NavigateOptionsType#href)
+     */
+    href?: string;
 }
-export type LinkProps<TComp = 'a', TRouter extends AnyRouter = RegisteredRouter, TFrom extends string = string, TTo extends string | undefined = '.', TMaskFrom extends string = TFrom, TMaskTo extends string = '.'> = ActiveLinkOptions<TComp, TRouter, TFrom, TTo, TMaskFrom, TMaskTo> & LinkPropsChildren;
-export interface LinkPropsChildren {
-    children?: React.ReactNode | ((state: {
-        isActive: boolean;
-        isTransitioning: boolean;
-    }) => React.ReactNode);
+export type ToOptions<TRouter extends AnyRouter = RegisteredRouter, TFrom extends string = string, TTo extends string | undefined = '.', TMaskFrom extends string = TFrom, TMaskTo extends string = '.'> = ToSubOptions<TRouter, TFrom, TTo> & MaskOptions<TRouter, TMaskFrom, TMaskTo>;
+export interface MaskOptions<in out TRouter extends AnyRouter, in out TMaskFrom extends string, in out TMaskTo extends string> {
+    _fromLocation?: ParsedLocation;
+    mask?: ToMaskOptions<TRouter, TMaskFrom, TMaskTo>;
 }
-type LinkComponentReactProps<TComp> = Omit<UseLinkReactProps<TComp>, keyof CreateLinkProps>;
-export type LinkComponentProps<TComp = 'a', TRouter extends AnyRouter = RegisteredRouter, TFrom extends string = string, TTo extends string | undefined = '.', TMaskFrom extends string = TFrom, TMaskTo extends string = '.'> = LinkComponentReactProps<TComp> & LinkProps<TComp, TRouter, TFrom, TTo, TMaskFrom, TMaskTo>;
-export type CreateLinkProps = LinkProps<any, any, string, string, string, string>;
-export type LinkComponent<in out TComp, in out TDefaultFrom extends string = string> = <TRouter extends AnyRouter = RegisteredRouter, const TFrom extends string = TDefaultFrom, const TTo extends string | undefined = undefined, const TMaskFrom extends string = TFrom, const TMaskTo extends string = ''>(props: LinkComponentProps<TComp, TRouter, TFrom, TTo, TMaskFrom, TMaskTo>) => React.ReactElement;
-export interface LinkComponentRoute<in out TDefaultFrom extends string = string> {
-    defaultFrom: TDefaultFrom;
-    <TRouter extends AnyRouter = RegisteredRouter, const TTo extends string | undefined = undefined, const TMaskTo extends string = ''>(props: LinkComponentProps<'a', TRouter, this['defaultFrom'], TTo, this['defaultFrom'], TMaskTo>): React.ReactElement;
+export type ToMaskOptions<TRouter extends AnyRouter = RegisteredRouter, TMaskFrom extends string = string, TMaskTo extends string = '.'> = ToSubOptions<TRouter, TMaskFrom, TMaskTo> & {
+    unmaskOnReload?: boolean;
+};
+export type ToSubOptions<TRouter extends AnyRouter = RegisteredRouter, TFrom extends string = string, TTo extends string | undefined = '.'> = ToSubOptionsProps<TRouter, TFrom, TTo> & SearchParamOptions<TRouter, TFrom, TTo> & PathParamOptions<TRouter, TFrom, TTo>;
+export interface RequiredToOptions<in out TRouter extends AnyRouter, in out TFrom extends string, in out TTo extends string | undefined> {
+    /**
+     * The internal route path to navigate to. This should be a relative or absolute path within your application.
+     * For external URLs, use the `href` property instead.
+     * @example "/dashboard" or "../profile"
+     * @link [API Docs](https://tanstack.com/router/latest/docs/framework/react/api/router/NavigateOptionsType#href)
+     */
+    to: ToPathOption<TRouter, TFrom, TTo> & {};
 }
+export interface OptionalToOptions<in out TRouter extends AnyRouter, in out TFrom extends string, in out TTo extends string | undefined> {
+    /**
+     * The internal route path to navigate to. This should be a relative or absolute path within your application.
+     * For external URLs, use the `href` property instead.
+     * @example "/dashboard" or "../profile"
+     * @link [API Docs](https://tanstack.com/router/latest/docs/framework/react/api/router/NavigateOptionsType#href)
+     */
+    to?: ToPathOption<TRouter, TFrom, TTo> & {};
+}
+export type MakeToRequired<TRouter extends AnyRouter, TFrom extends string, TTo extends string | undefined> = string extends TFrom ? string extends TTo ? OptionalToOptions<TRouter, TFrom, TTo> : TTo & CatchAllPaths<TRouter> extends never ? RequiredToOptions<TRouter, TFrom, TTo> : OptionalToOptions<TRouter, TFrom, TTo> : OptionalToOptions<TRouter, TFrom, TTo>;
+export type ToSubOptionsProps<TRouter extends AnyRouter = RegisteredRouter, TFrom extends RoutePaths<TRouter['routeTree']> | string = string, TTo extends string | undefined = '.'> = MakeToRequired<TRouter, TFrom, TTo> & {
+    hash?: true | Updater<string>;
+    state?: true | NonNullableUpdater<ParsedHistoryState, HistoryState>;
+    from?: FromPathOption<TRouter, TFrom> & {};
+    unsafeRelative?: 'path';
+};
+export type ParamsReducerFn<in out TRouter extends AnyRouter, in out TParamVariant extends ParamVariant, in out TFrom, in out TTo> = (current: Expand<ResolveFromParams<TRouter, TParamVariant, TFrom>>) => Expand<ResolveRelativeToParams<TRouter, TParamVariant, TFrom, TTo>>;
+type ParamsReducer<TRouter extends AnyRouter, TParamVariant extends ParamVariant, TFrom, TTo> = Expand<ResolveRelativeToParams<TRouter, TParamVariant, TFrom, TTo>> | (ParamsReducerFn<TRouter, TParamVariant, TFrom, TTo> & {});
+type ParamVariant = 'PATH' | 'SEARCH';
+export type ResolveRoute<TRouter extends AnyRouter, TFrom, TTo, TPath = ResolveRelativePath<TFrom, TTo>> = TPath extends string ? TFrom extends TPath ? RouteByPath<TRouter['routeTree'], TPath> : RouteByToPath<TRouter, TPath> : never;
+type ResolveFromParamType<TParamVariant extends ParamVariant> = TParamVariant extends 'PATH' ? 'allParams' : 'fullSearchSchema';
+type ResolveFromAllParams<TRouter extends AnyRouter, TParamVariant extends ParamVariant> = TParamVariant extends 'PATH' ? AllParams<TRouter['routeTree']> : FullSearchSchema<TRouter['routeTree']>;
+type ResolveFromParams<TRouter extends AnyRouter, TParamVariant extends ParamVariant, TFrom> = string extends TFrom ? ResolveFromAllParams<TRouter, TParamVariant> : RouteByPath<TRouter['routeTree'], TFrom>['types'][ResolveFromParamType<TParamVariant>];
+type ResolveToParamType<TParamVariant extends ParamVariant> = TParamVariant extends 'PATH' ? 'allParams' : 'fullSearchSchemaInput';
+type ResolveAllToParams<TRouter extends AnyRouter, TParamVariant extends ParamVariant> = TParamVariant extends 'PATH' ? AllParams<TRouter['routeTree']> : FullSearchSchemaInput<TRouter['routeTree']>;
+export type ResolveToParams<TRouter extends AnyRouter, TParamVariant extends ParamVariant, TFrom, TTo> = ResolveRelativePath<TFrom, TTo> extends infer TPath ? undefined extends TPath ? never : string extends TPath ? ResolveAllToParams<TRouter, TParamVariant> : TPath extends CatchAllPaths<TRouter> ? ResolveAllToParams<TRouter, TParamVariant> : ResolveRoute<TRouter, TFrom, TTo>['types'][ResolveToParamType<TParamVariant>] : never;
+type ResolveRelativeToParams<TRouter extends AnyRouter, TParamVariant extends ParamVariant, TFrom, TTo, TToParams = ResolveToParams<TRouter, TParamVariant, TFrom, TTo>> = TParamVariant extends 'SEARCH' ? TToParams : string extends TFrom ? TToParams : MakeDifferenceOptional<ResolveFromParams<TRouter, TParamVariant, TFrom>, TToParams>;
+export interface MakeOptionalSearchParams<in out TRouter extends AnyRouter, in out TFrom, in out TTo> {
+    search?: true | (ParamsReducer<TRouter, 'SEARCH', TFrom, TTo> & {});
+}
+export interface MakeOptionalPathParams<in out TRouter extends AnyRouter, in out TFrom, in out TTo> {
+    params?: true | (ParamsReducer<TRouter, 'PATH', TFrom, TTo> & {});
+}
+type MakeRequiredParamsReducer<TRouter extends AnyRouter, TParamVariant extends ParamVariant, TFrom, TTo> = (string extends TFrom ? never : ResolveFromParams<TRouter, TParamVariant, TFrom> extends ResolveRelativeToParams<TRouter, TParamVariant, TFrom, TTo> ? true : never) | (ParamsReducer<TRouter, TParamVariant, TFrom, TTo> & {});
+export interface MakeRequiredPathParams<in out TRouter extends AnyRouter, in out TFrom, in out TTo> {
+    params: MakeRequiredParamsReducer<TRouter, 'PATH', TFrom, TTo> & {};
+}
+export interface MakeRequiredSearchParams<in out TRouter extends AnyRouter, in out TFrom, in out TTo> {
+    search: MakeRequiredParamsReducer<TRouter, 'SEARCH', TFrom, TTo> & {};
+}
+export type IsRequired<TRouter extends AnyRouter, TParamVariant extends ParamVariant, TFrom, TTo> = ResolveRelativePath<TFrom, TTo> extends infer TPath ? undefined extends TPath ? never : TPath extends CatchAllPaths<TRouter> ? never : IsRequiredParams<ResolveRelativeToParams<TRouter, TParamVariant, TFrom, TTo>> : never;
+export type SearchParamOptions<TRouter extends AnyRouter, TFrom, TTo> = IsRequired<TRouter, 'SEARCH', TFrom, TTo> extends never ? MakeOptionalSearchParams<TRouter, TFrom, TTo> : MakeRequiredSearchParams<TRouter, TFrom, TTo>;
+export type PathParamOptions<TRouter extends AnyRouter, TFrom, TTo> = IsRequired<TRouter, 'PATH', TFrom, TTo> extends never ? MakeOptionalPathParams<TRouter, TFrom, TTo> : MakeRequiredPathParams<TRouter, TFrom, TTo>;
+export type ToPathOption<TRouter extends AnyRouter = AnyRouter, TFrom extends string = string, TTo extends string | undefined = string> = ConstrainLiteral<TTo, RelativeToPathAutoComplete<TRouter, NoInfer<TFrom> extends string ? NoInfer<TFrom> : '', NoInfer<TTo> & string>>;
+export type FromPathOption<TRouter extends AnyRouter, TFrom> = ConstrainLiteral<TFrom, RoutePaths<TRouter['routeTree']>>;
 /**
- * Creates a typed Link-like component that preserves TanStack Router's
- * navigation semantics and type-safety while delegating rendering to the
- * provided host component.
- *
- * Useful for integrating design system anchors/buttons while keeping
- * router-aware props (eg. `to`, `params`, `search`, `preload`).
- *
- * @param Comp The host component to render (eg. a design-system Link/Button)
- * @returns A router-aware component with the same API as `Link`.
- * @link https://tanstack.com/router/latest/docs/framework/react/guide/custom-link
+ * @link [Guide](https://tanstack.com/router/latest/docs/framework/react/guide/navigation#active-options)
  */
-export declare function createLink<const TComp>(Comp: Constrain<TComp, any, (props: CreateLinkProps) => ReactNode>): LinkComponent<TComp>;
-/**
- * A strongly-typed anchor component for declarative navigation.
- * Handles path, search, hash and state updates with optional route preloading
- * and active-state styling.
- *
- * Props:
- * - `preload`: Controls route preloading (eg. 'intent', 'render', 'viewport', true/false)
- * - `preloadDelay`: Delay in ms before preloading on hover
- * - `activeProps`/`inactiveProps`: Additional props merged when link is active/inactive
- * - `resetScroll`/`hashScrollIntoView`: Control scroll behavior on navigation
- * - `viewTransition`/`startTransition`: Use View Transitions/React transitions for navigation
- * - `ignoreBlocker`: Bypass registered blockers
- *
- * @returns An anchor-like element that navigates without full page reloads.
- * @link https://tanstack.com/router/latest/docs/framework/react/api/router/linkComponent
- */
-export declare const Link: LinkComponent<'a'>;
-export type LinkOptionsFnOptions<TOptions, TComp, TRouter extends AnyRouter = RegisteredRouter> = TOptions extends ReadonlyArray<any> ? ValidateLinkOptionsArray<TRouter, TOptions, string, TComp> : ValidateLinkOptions<TRouter, TOptions, string, TComp>;
-export type LinkOptionsFn<TComp> = <const TOptions, TRouter extends AnyRouter = RegisteredRouter>(options: LinkOptionsFnOptions<TOptions, TComp, TRouter>) => TOptions;
-/**
- * Validate and reuse navigation options for `Link`, `navigate` or `redirect`.
- * Accepts a literal options object and returns it typed for later spreading.
- * @example
- * const opts = linkOptions({ to: '/dashboard', search: { tab: 'home' } })
- * @link https://tanstack.com/router/latest/docs/framework/react/api/router/linkOptions
- */
-export declare const linkOptions: LinkOptionsFn<'a'>;
+export interface ActiveOptions {
+    /**
+     * If true, the link will be active if the current route matches the `to` route path exactly (no children routes)
+     * @default false
+     */
+    exact?: boolean;
+    /**
+     * If true, the link will only be active if the current URL hash matches the `hash` prop
+     * @default false
+     */
+    includeHash?: boolean;
+    /**
+     * If true, the link will only be active if the current URL search params inclusively match the `search` prop
+     * @default true
+     */
+    includeSearch?: boolean;
+    /**
+     * This modifies the `includeSearch` behavior.
+     * If true,  properties in `search` that are explicitly `undefined` must NOT be present in the current URL search params for the link to be active.
+     * @default false
+     */
+    explicitUndefined?: boolean;
+}
+export interface LinkOptionsProps {
+    /**
+     * The standard anchor tag target attribute
+     */
+    target?: HTMLAnchorElement['target'];
+    /**
+     * Configurable options to determine if the link should be considered active or not
+     * @default {exact:true,includeHash:true}
+     */
+    activeOptions?: ActiveOptions;
+    /**
+     * The preloading strategy for this link
+     * - `false` - No preloading
+     * - `'intent'` - Preload the linked route when the user focuses, hovers over, or touches the link
+     * - `'viewport'` - Preload the linked route when it enters the viewport
+     * - `'render'` - Preload the linked route as soon as it renders
+     */
+    preload?: false | 'intent' | 'viewport' | 'render';
+    /**
+     * When the intent preload strategy is set, this delays focus and hover
+     * preloading by this many milliseconds. Touch intent preloads immediately.
+     * If focus or hover exits before this delay, the preload will be cancelled.
+     */
+    preloadDelay?: number;
+    /**
+     * Control whether the link should be disabled or not
+     * If set to `true`, the link will be rendered without an `href` attribute
+     * @default false
+     */
+    disabled?: boolean;
+    /**
+     * When the preload strategy is set to `intent`, this controls the proximity of the link to the cursor before it is preloaded.
+     * If the user exits this proximity before this delay, the preload will be cancelled.
+     */
+    preloadIntentProximity?: number;
+}
+export type LinkOptions<TRouter extends AnyRouter = RegisteredRouter, TFrom extends string = string, TTo extends string | undefined = '.', TMaskFrom extends string = TFrom, TMaskTo extends string = '.'> = NavigateOptions<TRouter, TFrom, TTo, TMaskFrom, TMaskTo> & LinkOptionsProps;
+export declare const preloadWarning = "Error preloading route! \u261D\uFE0F";
 export {};
-/**
- * Type-check a literal object for use with `Link`, `navigate` or `redirect`.
- * Use to validate and reuse navigation options across your app.
- * @example
- * const opts = linkOptions({ to: '/dashboard', search: { tab: 'home' } })
- * @link https://tanstack.com/router/latest/docs/framework/react/api/router/linkOptions
- */

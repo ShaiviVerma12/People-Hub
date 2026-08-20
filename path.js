@@ -1,237 +1,223 @@
-/**
- * @fileoverview The Path class.
- * @author Nicholas C. Zakas
- */
-
-/* globals URL */
-
-//-----------------------------------------------------------------------------
-// Types
-//-----------------------------------------------------------------------------
-
-/** @typedef{import("@humanfs/types").HfsImpl} HfsImpl */
-/** @typedef{import("@humanfs/types").HfsDirectoryEntry} HfsDirectoryEntry */
-
-//-----------------------------------------------------------------------------
-// Helpers
-//-----------------------------------------------------------------------------
-
-/**
- * Normalizes a path to use forward slashes.
- * @param {string} filePath The path to normalize.
- * @returns {string} The normalized path.
- */
-function normalizePath(filePath) {
-	let startIndex = 0;
-	let endIndex = filePath.length;
-
-	if (/[a-z]:\//i.test(filePath)) {
-		startIndex = 3;
-	}
-
-	if (filePath.startsWith("./")) {
-		startIndex = 2;
-	}
-
-	if (filePath.startsWith("/")) {
-		startIndex = 1;
-	}
-
-	if (filePath.endsWith("/")) {
-		endIndex = filePath.length - 1;
-	}
-
-	return filePath.slice(startIndex, endIndex).replace(/\\/g, "/");
+import { last } from "./utils.js";
+import { parseSegment } from "./new-process-route-tree.js";
+import { isServer } from "@tanstack/router-core/isServer";
+//#region src/path.ts
+/** Join path segments, cleaning duplicate slashes between parts. */
+function joinPaths(paths) {
+	return cleanPath(paths.filter((val) => {
+		return val !== void 0;
+	}).join("/"));
 }
-
-/**
- * Asserts that the given name is a non-empty string, no equal to "." or "..",
- * and does not contain a forward slash or backslash.
- * @param {string} name The name to check.
- * @returns {void}
- * @throws {TypeError} When name is not valid.
- */
-function assertValidName(name) {
-	if (typeof name !== "string") {
-		throw new TypeError("name must be a string");
-	}
-
-	if (!name) {
-		throw new TypeError("name cannot be empty");
-	}
-
-	if (name === ".") {
-		throw new TypeError(`name cannot be "."`);
-	}
-
-	if (name === "..") {
-		throw new TypeError(`name cannot be ".."`);
-	}
-
-	if (name.includes("/") || name.includes("\\")) {
-		throw new TypeError(
-			`name cannot contain a slash or backslash: "${name}"`,
-		);
-	}
+/** Remove repeated slashes from a path string. */
+function cleanPath(path) {
+	return path.replace(/\/{2,}/g, "/");
 }
-
-//-----------------------------------------------------------------------------
-// Exports
-//-----------------------------------------------------------------------------
-
-export class Path {
-	/**
-	 * The steps in the path.
-	 * @type {Array<string>}
-	 */
-	#steps;
-
-	/**
-	 * Creates a new instance.
-	 * @param {Iterable<string>} [steps] The steps to use for the path.
-	 * @throws {TypeError} When steps is not iterable.
-	 */
-	constructor(steps = []) {
-		if (typeof steps[Symbol.iterator] !== "function") {
-			throw new TypeError("steps must be iterable");
+/** Trim leading slashes (except preserving root '/'). */
+function trimPathLeft(path) {
+	return path === "/" ? path : path.replace(/^\/{1,}/, "");
+}
+/** Trim trailing slashes (except preserving root '/'). */
+function trimPathRight(path) {
+	const len = path.length;
+	return len > 1 && path[len - 1] === "/" ? path.replace(/\/{1,}$/, "") : path;
+}
+/** Trim both leading and trailing slashes. */
+function trimPath(path) {
+	return trimPathRight(trimPathLeft(path));
+}
+/** Remove a trailing slash from value when appropriate for comparisons. */
+function removeTrailingSlash(value, basepath) {
+	if (value?.endsWith("/") && value !== "/" && value !== `${basepath}/`) return value.slice(0, -1);
+	return value;
+}
+/**
+* Compare two pathnames for exact equality after normalizing trailing slashes
+* relative to the provided `basepath`.
+*/
+function exactPathTest(pathName1, pathName2, basepath) {
+	return removeTrailingSlash(pathName1, basepath) === removeTrailingSlash(pathName2, basepath);
+}
+/**
+* Resolve a destination path against a base, honoring trailing-slash policy
+* and supporting relative segments (`.`/`..`) and absolute `to` values.
+*/
+function resolvePath({ base, to, trailingSlash = "never", cache }) {
+	const isBase = to === ".";
+	const isAbsolute = to.startsWith("/");
+	let key;
+	if (cache) {
+		key = isAbsolute ? to : isBase ? base : base + "\0" + to;
+		const cached = cache.get(key);
+		if (cached) return cached;
+	}
+	let baseSegments;
+	if (isBase) baseSegments = base.split("/");
+	else if (isAbsolute) baseSegments = to.split("/");
+	else {
+		baseSegments = base.split("/");
+		while (baseSegments.length > 1 && last(baseSegments) === "") baseSegments.pop();
+		const toSegments = to.split("/");
+		for (let index = 0, length = toSegments.length; index < length; index++) {
+			const value = toSegments[index];
+			if (value === "") {
+				if (!index) baseSegments = [value];
+				else if (index === length - 1) baseSegments.push(value);
+			} else if (value === "..") if (baseSegments.length > 1) baseSegments.pop();
+			else baseSegments = [""];
+			else if (value === ".") {} else baseSegments.push(value);
 		}
-
-		this.#steps = [...steps];
-		this.#steps.forEach(assertValidName);
 	}
-
-	/**
-	 * Adds steps to the end of the path.
-	 * @param  {...string} steps The steps to add to the path.
-	 * @returns {void}
-	 */
-	push(...steps) {
-		steps.forEach(assertValidName);
-		this.#steps.push(...steps);
+	if (baseSegments.length > 1) {
+		if (last(baseSegments) === "") {
+			if (trailingSlash === "never") baseSegments.pop();
+		} else if (trailingSlash === "always") baseSegments.push("");
 	}
-
-	/**
-	 * Removes the last step from the path.
-	 * @returns {string} The last step in the path.
-	 */
-	pop() {
-		return this.#steps.pop();
-	}
-
-	/**
-	 * Returns an iterator for steps in the path.
-	 * @returns {IterableIterator<string>} An iterator for the steps in the path.
-	 */
-	steps() {
-		return this.#steps.values();
-	}
-
-	/**
-	 * Returns an iterator for the steps in the path.
-	 * @returns {IterableIterator<string>} An iterator for the steps in the path.
-	 */
-	[Symbol.iterator]() {
-		return this.steps();
-	}
-
-	/**
-	 * Retrieves the name (the last step) of the path.
-	 * @type {string}
-	 */
-	get name() {
-		return this.#steps[this.#steps.length - 1];
-	}
-
-	/**
-	 * Sets the name (the last step) of the path.
-	 * @type {string}
-	 */
-	set name(value) {
-		assertValidName(value);
-		this.#steps[this.#steps.length - 1] = value;
-	}
-
-	/**
-	 * Retrieves the size of the path.
-	 * @type {number}
-	 */
-	get size() {
-		return this.#steps.length;
-	}
-
-	/**
-	 * Returns the path as a string.
-	 * @returns {string} The path as a string.
-	 */
-	toString() {
-		return this.#steps.join("/");
-	}
-
-	/**
-	 * Creates a new path based on the argument type. If the argument is a string,
-	 * it is assumed to be a file or directory path and is converted to a Path
-	 * instance. If the argument is a URL, it is assumed to be a file URL and is
-	 * converted to a Path instance. If the argument is a Path instance, it is
-	 * copied into a new Path instance. If the argument is an array, it is assumed
-	 * to be the steps of a path and is used to create a new Path instance.
-	 * @param {string|URL|Path|Array<string>} pathish The value to convert to a Path instance.
-	 * @returns {Path} A new Path instance.
-	 * @throws {TypeError} When pathish is not a string, URL, Path, or Array.
-	 * @throws {TypeError} When pathish is a string and is empty.
-	 */
-	static from(pathish) {
-		if (typeof pathish === "string") {
-			if (!pathish) {
-				throw new TypeError("argument cannot be empty");
+	const result = cleanPath(baseSegments.join("/")) || "/";
+	if (key && cache) cache.set(key, result);
+	return result;
+}
+/**
+* Create a pre-compiled decode config from allowed characters.
+* This should be called once at router initialization.
+*/
+function compileDecodeCharMap(pathParamsAllowedCharacters) {
+	const charMap = new Map(pathParamsAllowedCharacters.map((char) => [encodeURIComponent(char), char]));
+	const pattern = Array.from(charMap.keys()).map((key) => key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+	const regex = new RegExp(pattern, "g");
+	return (encoded) => encoded.replace(regex, (match) => charMap.get(match) ?? match);
+}
+function encodeParam(key, params, decoder) {
+	const value = params[key];
+	if (typeof value !== "string") return value;
+	if (key === "_splat") {
+		if (/^[a-zA-Z0-9\-._~!/]*$/.test(value)) return value;
+		return value.split("/").map((segment) => encodePathParam(segment, decoder)).join("/");
+	} else return encodePathParam(value, decoder);
+}
+/**
+* Interpolate params and wildcards into a route path template.
+*
+* - Encodes params safely (configurable allowed characters)
+* - Supports `{-$optional}` segments, `{prefix{$id}suffix}` and `{$}` wildcards
+*/
+function interpolatePath({ path, params, decoder, ...rest }) {
+	let isMissingParams = false;
+	const usedParams = Object.create(null);
+	if (!path || path === "/") return {
+		interpolatedPath: "/",
+		usedParams,
+		isMissingParams
+	};
+	if (!path.includes("$")) return {
+		interpolatedPath: path,
+		usedParams,
+		isMissingParams
+	};
+	if (isServer ?? rest.server) {
+		if (path.indexOf("{") === -1) {
+			const length = path.length;
+			let cursor = 0;
+			let joined = "";
+			while (cursor < length) {
+				while (cursor < length && path.charCodeAt(cursor) === 47) cursor++;
+				if (cursor >= length) break;
+				const start = cursor;
+				let end = path.indexOf("/", cursor);
+				if (end === -1) end = length;
+				cursor = end;
+				const part = path.substring(start, end);
+				if (!part) continue;
+				if (part.charCodeAt(0) === 36) if (part.length === 1) {
+					const splat = params._splat;
+					usedParams._splat = splat;
+					usedParams["*"] = splat;
+					if (!splat) {
+						isMissingParams = true;
+						continue;
+					}
+					const value = encodeParam("_splat", params, decoder);
+					joined += "/" + value;
+				} else {
+					const key = part.substring(1);
+					if (!isMissingParams && !(key in params)) isMissingParams = true;
+					usedParams[key] = params[key];
+					const value = encodeParam(key, params, decoder) ?? "undefined";
+					joined += "/" + value;
+				}
+				else joined += "/" + part;
 			}
-
-			return Path.fromString(pathish);
+			if (path.endsWith("/")) joined += "/";
+			return {
+				usedParams,
+				interpolatedPath: joined || "/",
+				isMissingParams
+			};
 		}
-
-		if (pathish instanceof URL) {
-			return Path.fromURL(pathish);
-		}
-
-		if (pathish instanceof Path || Array.isArray(pathish)) {
-			return new Path(pathish);
-		}
-
-		throw new TypeError("argument must be a string, URL, Path, or Array");
 	}
-
-	/**
-	 * Creates a new Path instance from a string.
-	 * @param {string} fileOrDirPath The file or directory path to convert.
-	 * @returns {Path} A new Path instance.
-	 * @deprecated Use Path.from() instead.
-	 */
-	static fromString(fileOrDirPath) {
-		return new Path(normalizePath(fileOrDirPath).split("/"));
+	const length = path.length;
+	let cursor = 0;
+	let segment;
+	let joined = "";
+	while (cursor < length) {
+		const start = cursor;
+		segment = parseSegment(path, start, segment);
+		const end = segment[5];
+		cursor = end + 1;
+		if (start === end) continue;
+		const kind = segment[0];
+		if (kind === 0) {
+			joined += "/" + path.substring(start, end);
+			continue;
+		}
+		if (kind === 2) {
+			const splat = params._splat;
+			usedParams._splat = splat;
+			usedParams["*"] = splat;
+			const prefix = path.substring(start, segment[1]);
+			const suffix = path.substring(segment[4], end);
+			if (!splat) {
+				isMissingParams = true;
+				if (prefix || suffix) joined += "/" + prefix + suffix;
+				continue;
+			}
+			const value = encodeParam("_splat", params, decoder);
+			joined += "/" + prefix + value + suffix;
+			continue;
+		}
+		if (kind === 1) {
+			const key = path.substring(segment[2], segment[3]);
+			if (!isMissingParams && !(key in params)) isMissingParams = true;
+			usedParams[key] = params[key];
+			const prefix = path.substring(start, segment[1]);
+			const suffix = path.substring(segment[4], end);
+			const value = encodeParam(key, params, decoder) ?? "undefined";
+			joined += "/" + prefix + value + suffix;
+			continue;
+		}
+		if (kind === 3) {
+			const key = path.substring(segment[2], segment[3]);
+			const valueRaw = params[key];
+			if (valueRaw == null) continue;
+			usedParams[key] = valueRaw;
+			const prefix = path.substring(start, segment[1]);
+			const suffix = path.substring(segment[4], end);
+			const value = encodeParam(key, params, decoder) ?? "";
+			joined += "/" + prefix + value + suffix;
+			continue;
+		}
 	}
-
-	/**
-	 * Creates a new Path instance from a URL.
-	 * @param {URL} url The URL to convert.
-	 * @returns {Path} A new Path instance.
-	 * @throws {TypeError} When url is not a URL instance.
-	 * @throws {TypeError} When url.pathname is empty.
-	 * @throws {TypeError} When url.protocol is not "file:".
-	 * @deprecated Use Path.from() instead.
-	 */
-	static fromURL(url) {
-		if (!(url instanceof URL)) {
-			throw new TypeError("url must be a URL instance");
-		}
-
-		if (!url.pathname || url.pathname === "/") {
-			throw new TypeError("url.pathname cannot be empty");
-		}
-
-		if (url.protocol !== "file:") {
-			throw new TypeError(`url.protocol must be "file:"`);
-		}
-
-		// Remove leading slash in pathname
-		return new Path(normalizePath(url.pathname.slice(1)).split("/"));
-	}
+	if (path.endsWith("/")) joined += "/";
+	return {
+		usedParams,
+		interpolatedPath: joined || "/",
+		isMissingParams
+	};
 }
+function encodePathParam(value, decoder) {
+	const encoded = encodeURIComponent(value);
+	return decoder?.(encoded) ?? encoded;
+}
+//#endregion
+export { cleanPath, compileDecodeCharMap, exactPathTest, interpolatePath, joinPaths, removeTrailingSlash, resolvePath, trimPath, trimPathLeft, trimPathRight };
+
+//# sourceMappingURL=path.js.map

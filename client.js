@@ -1,7 +1,4 @@
-//#region src/isServer/client.ts
-const isServer = false;
-const loadServerRoute = void 0;
-//#endregion
-export { isServer, loadServerRoute };
-
-//# sourceMappingURL=client.js.map
+import { hydrate } from "../load-client.js";
+import { mergeHeaders } from "./headers.js";
+import { json } from "./json.js";
+export { hydrate, json, mergeHeaders };

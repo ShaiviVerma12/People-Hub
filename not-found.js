@@ -1,46 +1,25 @@
-import { CatchBoundary } from "./CatchBoundary.js";
-import { useRouter } from "./useRouter.js";
-import { isNotFound } from "@tanstack/router-core";
-import "react";
-import { isServer } from "@tanstack/router-core/isServer";
-import { jsx } from "react/jsx-runtime";
-import { useStore } from "@tanstack/react-store";
-//#region src/not-found.tsx
-function CatchNotFound(props) {
-	const router = useRouter();
-	if (isServer ?? router.isServer) {
-		const resetKey = `not-found-${router.stores.location.get().pathname}-${router.stores.status.get()}`;
-		return /* @__PURE__ */ jsx(CatchBoundary, {
-			getResetKey: () => resetKey,
-			onCatch: (error, errorInfo) => {
-				if (isNotFound(error)) props.onCatch?.(error, errorInfo);
-				else throw error;
-			},
-			errorComponent: ({ error }) => {
-				if (isNotFound(error)) return props.fallback?.(error);
-				else throw error;
-			},
-			children: props.children
-		});
-	}
-	const resetKey = `not-found-${useStore(router.stores.location, (location) => location.pathname)}-${useStore(router.stores.status, (status) => status)}`;
-	return /* @__PURE__ */ jsx(CatchBoundary, {
-		getResetKey: () => resetKey,
-		onCatch: (error, errorInfo) => {
-			if (isNotFound(error)) props.onCatch?.(error, errorInfo);
-			else throw error;
-		},
-		errorComponent: ({ error }) => {
-			if (isNotFound(error)) return props.fallback?.(error);
-			else throw error;
-		},
-		children: props.children
-	});
+//#region src/not-found.ts
+/**
+* Create a not-found error object recognized by TanStack Router.
+*
+* Throw this from loaders/actions to trigger the nearest `notFoundComponent`.
+* Use `routeId` to target a specific route's not-found boundary. If `throw`
+* is true, the error is thrown instead of returned.
+*
+* @param options Optional settings including `routeId`, `headers`, and `throw`.
+* @returns A not-found error object that can be thrown or returned.
+* @link https://tanstack.com/router/latest/docs/router/framework/react/api/router/notFoundFunction
+*/
+function notFound(options = {}) {
+	options.isNotFound = true;
+	if (options.throw) throw options;
+	return options;
 }
-function DefaultGlobalNotFound() {
-	return /* @__PURE__ */ jsx("p", { children: "Not Found" });
+/** Determine if a value is a TanStack Router not-found error. */
+function isNotFound(obj) {
+	return obj?.isNotFound === true;
 }
 //#endregion
-export { CatchNotFound, DefaultGlobalNotFound };
+export { isNotFound, notFound };
 
 //# sourceMappingURL=not-found.js.map

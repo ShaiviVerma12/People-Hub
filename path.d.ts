@@ -1,82 +1,56 @@
-export class Path {
-    /**
-     * Creates a new path based on the argument type. If the argument is a string,
-     * it is assumed to be a file or directory path and is converted to a Path
-     * instance. If the argument is a URL, it is assumed to be a file URL and is
-     * converted to a Path instance. If the argument is a Path instance, it is
-     * copied into a new Path instance. If the argument is an array, it is assumed
-     * to be the steps of a path and is used to create a new Path instance.
-     * @param {string|URL|Path|Array<string>} pathish The value to convert to a Path instance.
-     * @returns {Path} A new Path instance.
-     * @throws {TypeError} When pathish is not a string, URL, Path, or Array.
-     * @throws {TypeError} When pathish is a string and is empty.
-     */
-    static from(pathish: string | URL | Path | Array<string>): Path;
-    /**
-     * Creates a new Path instance from a string.
-     * @param {string} fileOrDirPath The file or directory path to convert.
-     * @returns {Path} A new Path instance.
-     * @deprecated Use Path.from() instead.
-     */
-    static fromString(fileOrDirPath: string): Path;
-    /**
-     * Creates a new Path instance from a URL.
-     * @param {URL} url The URL to convert.
-     * @returns {Path} A new Path instance.
-     * @throws {TypeError} When url is not a URL instance.
-     * @throws {TypeError} When url.pathname is empty.
-     * @throws {TypeError} When url.protocol is not "file:".
-     * @deprecated Use Path.from() instead.
-     */
-    static fromURL(url: URL): Path;
-    /**
-     * Creates a new instance.
-     * @param {Iterable<string>} [steps] The steps to use for the path.
-     * @throws {TypeError} When steps is not iterable.
-     */
-    constructor(steps?: Iterable<string>);
-    /**
-     * Adds steps to the end of the path.
-     * @param  {...string} steps The steps to add to the path.
-     * @returns {void}
-     */
-    push(...steps: string[]): void;
-    /**
-     * Removes the last step from the path.
-     * @returns {string} The last step in the path.
-     */
-    pop(): string;
-    /**
-     * Returns an iterator for steps in the path.
-     * @returns {IterableIterator<string>} An iterator for the steps in the path.
-     */
-    steps(): IterableIterator<string>;
-    /**
-     * Sets the name (the last step) of the path.
-     * @type {string}
-     */
-    set name(value: string);
-    /**
-     * Retrieves the name (the last step) of the path.
-     * @type {string}
-     */
-    get name(): string;
-    /**
-     * Retrieves the size of the path.
-     * @type {number}
-     */
-    get size(): number;
-    /**
-     * Returns the path as a string.
-     * @returns {string} The path as a string.
-     */
-    toString(): string;
-    /**
-     * Returns an iterator for the steps in the path.
-     * @returns {IterableIterator<string>} An iterator for the steps in the path.
-     */
-    [Symbol.iterator](): IterableIterator<string>;
-    #private;
+import { LRUCache } from './lru-cache.js';
+/** Join path segments, cleaning duplicate slashes between parts. */
+export declare function joinPaths(paths: Array<string | undefined>): string;
+/** Remove repeated slashes from a path string. */
+export declare function cleanPath(path: string): string;
+/** Trim leading slashes (except preserving root '/'). */
+export declare function trimPathLeft(path: string): string;
+/** Trim trailing slashes (except preserving root '/'). */
+export declare function trimPathRight(path: string): string;
+/** Trim both leading and trailing slashes. */
+export declare function trimPath(path: string): string;
+/** Remove a trailing slash from value when appropriate for comparisons. */
+export declare function removeTrailingSlash(value: string, basepath: string): string;
+/**
+ * Compare two pathnames for exact equality after normalizing trailing slashes
+ * relative to the provided `basepath`.
+ */
+export declare function exactPathTest(pathName1: string, pathName2: string, basepath: string): boolean;
+interface ResolvePathOptions {
+    base: string;
+    to: string;
+    trailingSlash?: 'always' | 'never' | 'preserve';
+    cache?: LRUCache<string, string>;
 }
-export type HfsImpl = import("@humanfs/types").HfsImpl;
-export type HfsDirectoryEntry = import("@humanfs/types").HfsDirectoryEntry;
+/**
+ * Resolve a destination path against a base, honoring trailing-slash policy
+ * and supporting relative segments (`.`/`..`) and absolute `to` values.
+ */
+export declare function resolvePath({ base, to, trailingSlash, cache, }: ResolvePathOptions): string;
+/**
+ * Create a pre-compiled decode config from allowed characters.
+ * This should be called once at router initialization.
+ */
+export declare function compileDecodeCharMap(pathParamsAllowedCharacters: ReadonlyArray<string>): (encoded: string) => string;
+interface InterpolatePathOptions {
+    path?: string;
+    params: Record<string, unknown>;
+    /**
+     * A function that decodes a path parameter value.
+     * Obtained from `compileDecodeCharMap(pathParamsAllowedCharacters)`.
+     */
+    decoder?: (encoded: string) => string;
+}
+type InterPolatePathResult = {
+    interpolatedPath: string;
+    usedParams: Record<string, unknown>;
+    isMissingParams: boolean;
+};
+/**
+ * Interpolate params and wildcards into a route path template.
+ *
+ * - Encodes params safely (configurable allowed characters)
+ * - Supports `{-$optional}` segments, `{prefix{$id}suffix}` and `{$}` wildcards
+ */
+export declare function interpolatePath({ path, params, decoder, ...rest }: InterpolatePathOptions): InterPolatePathResult;
+export {};

@@ -1,48 +1,24 @@
-export * from "@tanstack/store";
-import { useStore } from "./useStore.js";
-function shallow(objA, objB) {
-  if (Object.is(objA, objB)) {
-    return true;
-  }
-  if (typeof objA !== "object" || objA === null || typeof objB !== "object" || objB === null) {
-    return false;
-  }
-  if (objA instanceof Map && objB instanceof Map) {
-    if (objA.size !== objB.size) return false;
-    for (const [k, v] of objA) {
-      if (!objB.has(k) || !Object.is(v, objB.get(k))) return false;
-    }
-    return true;
-  }
-  if (objA instanceof Set && objB instanceof Set) {
-    if (objA.size !== objB.size) return false;
-    for (const v of objA) {
-      if (!objB.has(v)) return false;
-    }
-    return true;
-  }
-  if (objA instanceof Date && objB instanceof Date) {
-    if (objA.getTime() !== objB.getTime()) return false;
-    return true;
-  }
-  const keysA = getOwnKeys(objA);
-  if (keysA.length !== getOwnKeys(objB).length) {
-    return false;
-  }
-  for (let i = 0; i < keysA.length; i++) {
-    if (!Object.prototype.hasOwnProperty.call(objB, keysA[i]) || !Object.is(objA[keysA[i]], objB[keysA[i]])) {
-      return false;
-    }
-  }
-  return true;
-}
-function getOwnKeys(obj) {
-  return Object.keys(obj).concat(
-    Object.getOwnPropertySymbols(obj)
-  );
-}
-export {
-  shallow,
-  useStore
-};
-//# sourceMappingURL=index.js.map
+import { DEFAULT_PROTOCOL_ALLOWLIST, buildDevStylesUrl, createControlledPromise, deepEqual, escapeHtml, functionalUpdate, hasKeys, isDangerousProtocol, isModuleNotFoundError, isPlainArray, isPlainObject, replaceEqualDeep } from "./utils.js";
+import { invariant } from "./invariant.js";
+import { cleanPath, exactPathTest, interpolatePath, joinPaths, removeTrailingSlash, resolvePath, trimPath, trimPathLeft, trimPathRight } from "./path.js";
+import { isNotFound, notFound } from "./not-found.js";
+import { defaultGetScrollRestorationKey, getElementScrollRestorationEntry, setupScrollRestoration, storageKey } from "./scroll-restoration.js";
+import { decode, encode } from "./qss.js";
+import { defaultParseSearch, defaultStringifySearch, parseSearchWith, stringifySearchWith } from "./searchParams.js";
+import { rootRouteId } from "./root.js";
+import { isRedirect, isResolvedRedirect, parseRedirect, redirect } from "./redirect.js";
+import { _getAssetMatches, _getRenderedMatches } from "./load-client.js";
+import { composeRewrites, executeRewriteInput } from "./rewrite.js";
+import { createNonReactiveMutableStore, createNonReactiveReadonlyStore } from "./stores.js";
+import { PathParamError, RouterCore, SearchParamError, defaultSerializeError, getInitialRouterState, getLocationChangeInfo, lazyFn, trailingSlashOptions } from "./router.js";
+import { TSR_DEFERRED_PROMISE, defer } from "./defer.js";
+import { preloadWarning } from "./link.js";
+import { DEV_STYLES_ATTR, appendUniqueUserTags, createInlineCssStyleAsset, getAssetCrossOrigin, getManifestScriptFormat, getScriptPreloadAttrs, getStylesheetHref, resolveManifestAssetLink, resolveManifestCssLink } from "./manifest.js";
+import { isMatch } from "./Matches.js";
+import { BaseRootRoute, BaseRoute, BaseRouteApi } from "./route.js";
+import { createRouterConfig } from "./config.js";
+import { retainSearchParams, stripSearchParams } from "./searchMiddleware.js";
+import { createSerializationAdapter, makeSerovalPlugin, makeSsrSerovalPlugin } from "./ssr/serializer/transformer.js";
+import { RawStream, createRawStreamDeserializePlugin, createRawStreamRPCPlugin } from "./ssr/serializer/RawStream.js";
+import { defaultSerovalPlugins } from "./ssr/serializer/seroval-plugins.js";
+export { BaseRootRoute, BaseRoute, BaseRouteApi, DEFAULT_PROTOCOL_ALLOWLIST, DEV_STYLES_ATTR, PathParamError, RawStream, RouterCore, SearchParamError, TSR_DEFERRED_PROMISE, _getAssetMatches, _getRenderedMatches, appendUniqueUserTags, buildDevStylesUrl, cleanPath, composeRewrites, createControlledPromise, createInlineCssStyleAsset, createNonReactiveMutableStore, createNonReactiveReadonlyStore, createRawStreamDeserializePlugin, createRawStreamRPCPlugin, createRouterConfig, createSerializationAdapter, decode, deepEqual, defaultGetScrollRestorationKey, defaultParseSearch, defaultSerializeError, defaultSerovalPlugins, defaultStringifySearch, defer, encode, escapeHtml, exactPathTest, executeRewriteInput, functionalUpdate, getAssetCrossOrigin, getElementScrollRestorationEntry, getInitialRouterState, getLocationChangeInfo, getManifestScriptFormat, getScriptPreloadAttrs, getStylesheetHref, hasKeys, interpolatePath, invariant, isDangerousProtocol, isMatch, isModuleNotFoundError, isNotFound, isPlainArray, isPlainObject, isRedirect, isResolvedRedirect, joinPaths, lazyFn, makeSerovalPlugin, makeSsrSerovalPlugin, notFound, parseRedirect, parseSearchWith, preloadWarning, redirect, removeTrailingSlash, replaceEqualDeep, resolveManifestAssetLink, resolveManifestCssLink, resolvePath, retainSearchParams, rootRouteId, setupScrollRestoration, storageKey, stringifySearchWith, stripSearchParams, trailingSlashOptions, trimPath, trimPathLeft, trimPathRight };

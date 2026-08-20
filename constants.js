@@ -1,9 +1,7 @@
-import { createRequire } from 'node:module';
-export const cjsRequire = typeof require === 'function' ? require : createRequire(import.meta.url);
-const DEFAULT_EXTENSIONS = cjsRequire.extensions
-    ?
-        Object.keys(cjsRequire.extensions)
-    :
-        ['.js', '.json', '.node'];
-export const EXTENSIONS = ['.ts', '.tsx', ...DEFAULT_EXTENSIONS];
+//#region src/ssr/constants.ts
+const GLOBAL_TSR = "$_TSR";
+const TSR_SCRIPT_BARRIER_ID = "$tsr-stream-barrier";
+//#endregion
+export { GLOBAL_TSR, TSR_SCRIPT_BARRIER_ID };
+
 //# sourceMappingURL=constants.js.map

@@ -1,6 +1,3 @@
-/// <reference types="node" preserve="true" />
-export interface CjsRequire extends NodeJS.Require {
-    <T>(id: string): T;
-}
-export declare const cjsRequire: CjsRequire;
-export declare const EXTENSIONS: string[];
+export declare const GLOBAL_TSR = "$_TSR";
+export declare const GLOBAL_SEROVAL: '$R';
+export declare const TSR_SCRIPT_BARRIER_ID = "$tsr-stream-barrier";
