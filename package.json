@@ -1,63 +1,65 @@
 {
-  "name": "@jridgewell/sourcemap-codec",
-  "version": "1.5.5",
-  "description": "Encode/decode sourcemap mappings",
-  "keywords": [
-    "sourcemap",
-    "vlq"
-  ],
-  "main": "dist/sourcemap-codec.umd.js",
-  "module": "dist/sourcemap-codec.mjs",
-  "types": "types/sourcemap-codec.d.cts",
+  "name": "@lovable.dev/vite-tanstack-config",
+  "version": "2.10.0",
+  "description": "Vite config wrapper for Lovable TanStack Start projects",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
   "files": [
-    "dist",
-    "src",
-    "types"
+    "dist"
   ],
-  "exports": {
-    ".": [
-      {
-        "import": {
-          "types": "./types/sourcemap-codec.d.mts",
-          "default": "./dist/sourcemap-codec.mjs"
-        },
-        "default": {
-          "types": "./types/sourcemap-codec.d.cts",
-          "default": "./dist/sourcemap-codec.umd.js"
-        }
-      },
-      "./dist/sourcemap-codec.umd.js"
-    ],
-    "./package.json": "./package.json"
+  "keywords": [
+    "vite",
+    "tanstack",
+    "lovable",
+    "config"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@lovable.dev/vite-plugin-dev-server-bridge": "^1.2.1",
+    "@lovable.dev/vite-plugin-hmr-gate": "^1.5.0",
+    "@tanstack/devtools-vite": "^0.8.1",
+    "lightningcss": "^1.30.0"
   },
-  "scripts": {
-    "benchmark": "run-s build:code benchmark:*",
-    "benchmark:install": "cd benchmark && npm install",
-    "benchmark:only": "node --expose-gc benchmark/index.js",
-    "build": "run-s -n build:code build:types",
-    "build:code": "node ../../esbuild.mjs sourcemap-codec.ts",
-    "build:types": "run-s build:types:force build:types:emit build:types:mts",
-    "build:types:force": "rimraf tsconfig.build.tsbuildinfo",
-    "build:types:emit": "tsc --project tsconfig.build.json",
-    "build:types:mts": "node ../../mts-types.mjs",
-    "clean": "run-s -n clean:code clean:types",
-    "clean:code": "tsc --build --clean tsconfig.build.json",
-    "clean:types": "rimraf dist types",
-    "test": "run-s -n test:types test:only test:format",
-    "test:format": "prettier --check '{src,test}/**/*.ts'",
-    "test:only": "mocha",
-    "test:types": "eslint '{src,test}/**/*.ts'",
-    "lint": "run-s -n lint:types lint:format",
-    "lint:format": "npm run test:format -- --write",
-    "lint:types": "npm run test:types -- --fix",
-    "prepublishOnly": "npm run-s -n build test"
+  "peerDependencies": {
+    "vite": ">=5.0.0 <9.0.0",
+    "@tailwindcss/vite": ">=4.0.0",
+    "vite-tsconfig-paths": ">=6.0.0",
+    "nitro": ">=3.0.260603-beta",
+    "@tanstack/react-start": ">=1.100.0",
+    "@vitejs/plugin-react": ">=4.0.0"
   },
-  "homepage": "https://github.com/jridgewell/sourcemaps/tree/main/packages/sourcemap-codec",
+  "peerDependenciesMeta": {
+    "nitro": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "@tanstack/react-start": "^1.167.50",
+    "@types/node": "22.13.13",
+    "@vitejs/plugin-react": "^5.2.0",
+    "nitro": "3.0.260603-beta",
+    "rimraf": "^5.0.0",
+    "tsdown": "^0.22.5",
+    "typescript": "7.0.2",
+    "vite": "^8.2.0",
+    "vite-tsconfig-paths": "^6.0.2",
+    "vitest": "^4.1.5"
+  },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jridgewell/sourcemaps.git",
-    "directory": "packages/sourcemap-codec"
+    "url": "git+https://github.com/lovablelabs/lovable.git",
+    "directory": "npm-packages/lovable-vite-tanstack"
   },
-  "author": "Justin Ridgewell <justin@ridgewell.name>",
-  "license": "MIT"
+  "scripts": {
+    "build": "tsdown",
+    "check:package": "tmp=$(mktemp -d) && pnpm pack --out \"$tmp/pkg.tgz\" && tar -xzf \"$tmp/pkg.tgz\" -C \"$tmp\" && publint \"$tmp/package\" --strict && attw \"$tmp/pkg.tgz\"",
+    "typecheck": "tsgo --noEmit",
+    "dev": "tsdown --watch",
+    "test": "vitest",
+    "clean": "rimraf dist",
+    "coverage": "vitest run --coverage"
+  }
 }

@@ -1,884 +1,764 @@
-'use strict';
-
-var levn = require('levn');
-
-/**
- * @fileoverview Config Comment Parser
- * @author Nicholas C. Zakas
- */
-
-
-//-----------------------------------------------------------------------------
-// Type Definitions
-//-----------------------------------------------------------------------------
-
-/** @import * as $eslintcore from "@eslint/core"; */
-/** @typedef {$eslintcore.RuleConfig} RuleConfig */
-/** @typedef {$eslintcore.RulesConfig} RulesConfig */
-/** @import * as $typests from "./types.ts"; */
-/** @typedef {$typests.StringConfig} StringConfig */
-/** @typedef {$typests.BooleanConfig} BooleanConfig */
-
-//-----------------------------------------------------------------------------
-// Helpers
-//-----------------------------------------------------------------------------
-
-const directivesPattern = /^([a-z]+(?:-[a-z]+)*)(?:\s|$)/u;
-const validSeverities = new Set([0, 1, 2, "off", "warn", "error"]);
-
-/**
- * Determines if the severity in the rule configuration is valid.
- * @param {RuleConfig} ruleConfig A rule's configuration.
- * @returns {boolean} `true` if the severity is valid, otherwise `false`.
- */
-function isSeverityValid(ruleConfig) {
-	const severity = Array.isArray(ruleConfig) ? ruleConfig[0] : ruleConfig;
-	return validSeverities.has(severity);
-}
-
-/**
- * Determines if all severities in the rules configuration are valid.
- * @param {RulesConfig} rulesConfig The rules configuration to check.
- * @returns {boolean} `true` if all severities are valid, otherwise `false`.
- */
-function isEverySeverityValid(rulesConfig) {
-	return Object.values(rulesConfig).every(isSeverityValid);
-}
-
-/**
- * Represents a directive comment.
- */
-class DirectiveComment {
-	/**
-	 * The label of the directive, such as "eslint", "eslint-disable", etc.
-	 * @type {string}
-	 */
-	label = "";
-
-	/**
-	 * The value of the directive (the string after the label).
-	 * @type {string}
-	 */
-	value = "";
-
-	/**
-	 * The justification of the directive (the string after the --).
-	 * @type {string}
-	 */
-	justification = "";
-
-	/**
-	 * Creates a new directive comment.
-	 * @param {string} label The label of the directive.
-	 * @param {string} value The value of the directive.
-	 * @param {string} justification The justification of the directive.
-	 */
-	constructor(label, value, justification) {
-		this.label = label;
-		this.value = value;
-		this.justification = justification;
-	}
-}
-
-//------------------------------------------------------------------------------
-// Public Interface
-//------------------------------------------------------------------------------
-
-/**
- * Object to parse ESLint configuration comments.
- */
-class ConfigCommentParser {
-	/**
-	 * Parses a list of "name:string_value" or/and "name" options divided by comma or
-	 * whitespace. Used for "global" comments.
-	 * @param {string} string The string to parse.
-	 * @returns {StringConfig} Result map object of names and string values, or null values if no value was provided.
-	 */
-	parseStringConfig(string) {
-		const items = /** @type {StringConfig} */ ({});
-
-		// Collapse whitespace around `:` and `,` to make parsing easier
-		const trimmedString = string
-			.trim()
-			.replace(/(?<!\s)\s*([:,])\s*/gu, "$1");
-
-		trimmedString.split(/\s|,+/u).forEach(name => {
-			if (!name) {
-				return;
-			}
-
-			// value defaults to null (if not provided), e.g: "foo" => ["foo", null]
-			const [key, value = null] = name.split(":");
-
-			items[key] = value;
+Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
+//#region \0rolldown/runtime.js
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __copyProps = (to, from, except, desc) => {
+	if (from && typeof from === "object" || typeof from === "function") for (var keys = __getOwnPropNames(from), i = 0, n = keys.length, key; i < n; i++) {
+		key = keys[i];
+		if (!__hasOwnProp.call(to, key) && key !== except) __defProp(to, key, {
+			get: ((k) => from[k]).bind(null, key),
+			enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable
 		});
-
-		return items;
 	}
-
-	/**
-	 * Parses a JSON-like config.
-	 * @param {string} string The string to parse.
-	 * @returns {({ok: true, config: RulesConfig}|{ok: false, error: {message: string}})} Result map object
-	 */
-	parseJSONLikeConfig(string) {
-		// Parses a JSON-like comment by the same way as parsing CLI option.
-		try {
-			const items =
-				/** @type {RulesConfig} */ (levn.parse("Object", string)) || {};
-
-			/*
-			 * When the configuration has any invalid severities, it should be completely
-			 * ignored. This is because the configuration is not valid and should not be
-			 * applied.
-			 *
-			 * For example, the following configuration is invalid:
-			 *
-			 *    "no-alert: 2 no-console: 2"
-			 *
-			 * This results in a configuration of { "no-alert": "2 no-console: 2" }, which is
-			 * not valid. In this case, the configuration should be ignored.
-			 */
-			if (isEverySeverityValid(items)) {
-				return {
-					ok: true,
-					config: items,
-				};
-			}
-		} catch {
-			// levn parsing error: ignore to parse the string by a fallback.
-		}
-
-		/*
-		 * Optionator cannot parse commaless notations.
-		 * But we are supporting that. So this is a fallback for that.
-		 */
-		const normalizedString = string
-			.replace(/(?<![-a-zA-Z0-9/])([-a-zA-Z0-9/]+):/gu, '"$1":')
-			.replace(/([\]0-9])\s+(?=")/u, "$1,");
-
-		try {
-			const items = JSON.parse(`{${normalizedString}}`);
-
-			return {
-				ok: true,
-				config: items,
+	return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", {
+	value: mod,
+	enumerable: true
+}) : target, mod));
+//#endregion
+let vite = require("vite");
+let node_https = require("node:https");
+node_https = __toESM(node_https, 1);
+//#region src/assetsProxyPlugin.ts
+const ASSET_RE = /^\/__l5e\/assets-v1\//;
+const PREVIEW_HOST_ENV = "LOVABLE_PREVIEW_HOST";
+const HOP_BY_HOP = /* @__PURE__ */ new Set([
+	"host",
+	"connection",
+	"keep-alive",
+	"proxy-authenticate",
+	"proxy-authorization",
+	"te",
+	"trailer",
+	"transfer-encoding",
+	"upgrade",
+	"content-length",
+	"cookie"
+]);
+function pickRequestHeaders(src) {
+	const out = {};
+	for (const [k, v] of Object.entries(src)) {
+		if (v === void 0) continue;
+		if (HOP_BY_HOP.has(k.toLowerCase())) continue;
+		out[k] = v;
+	}
+	return out;
+}
+/**
+* Forwards `/__l5e/assets-v1/*` requests from the Vite dev server to the
+* Lovable preview proxy so assets resolve when the page is loaded directly
+* from the sandbox dev server (e.g. `localhost:8080`) instead of via
+* `*.lovable.app` / `*.lovableproject.com`.
+*
+* No-op unless `LOVABLE_PREVIEW_HOST` is set (host only, no scheme), e.g.
+* `id-preview--<project-id>.lovable.app`.
+*/
+function lovableAssetsProxyPlugin() {
+	const previewHost = process.env[PREVIEW_HOST_ENV]?.trim();
+	return {
+		name: "lovable:assets-proxy",
+		apply: "serve",
+		configureServer(server) {
+			if (!previewHost) return;
+			const middleware = (req, res, next) => {
+				const url = req.url ?? "";
+				if (!ASSET_RE.test(url)) return next();
+				const upstream = node_https.default.request({
+					host: previewHost,
+					port: 443,
+					method: req.method,
+					path: url,
+					headers: {
+						...pickRequestHeaders(req.headers),
+						host: previewHost
+					}
+				}, (upRes) => {
+					res.statusCode = upRes.statusCode ?? 502;
+					for (const [k, v] of Object.entries(upRes.headers)) {
+						if (v === void 0) continue;
+						if (HOP_BY_HOP.has(k.toLowerCase())) continue;
+						res.setHeader(k, v);
+					}
+					upRes.pipe(res);
+				});
+				upstream.on("error", (err) => {
+					server.config.logger.warn(`[@lovable.dev/vite-tanstack-config] asset proxy ${url} → ${previewHost} failed: ${err.message}`);
+					if (!res.headersSent) {
+						res.statusCode = 502;
+						res.end();
+					} else res.destroy(err);
+				});
+				req.pipe(upstream);
 			};
-		} catch (ex) {
-			const errorMessage = ex instanceof Error ? ex.message : String(ex);
-
-			return {
-				ok: false,
-				error: {
-					message: `Failed to parse JSON from '${normalizedString}': ${errorMessage}`,
-				},
-			};
+			server.middlewares.use(middleware);
 		}
+	};
+}
+//#endregion
+//#region src/bundledDev.ts
+const BUNDLED_DEV_ENV_VAR = "LOVABLE_FEATURE_BUNDLED_DEV";
+function bundledDevRequested() {
+	return process.env[BUNDLED_DEV_ENV_VAR] === "true";
+}
+function viteVersionSupportsBundledDev(version) {
+	if (!version || version.includes("-")) return false;
+	const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+	if (!match) return false;
+	const [major, minor] = [Number(match[1]), Number(match[2])];
+	return major === 8 && minor === 1;
+}
+async function resolveInstalledViteVersion() {
+	try {
+		const { createRequire } = await import("node:module");
+		const { version } = createRequire(`${process.cwd()}/package.json`)("vite/package.json");
+		return typeof version === "string" ? version : void 0;
+	} catch {
+		return;
 	}
-
-	/**
-	 * Parses a config of values separated by comma.
-	 * @param {string} string The string to parse.
-	 * @returns {BooleanConfig} Result map of values and true values
-	 */
-	parseListConfig(string) {
-		const items = /** @type {BooleanConfig} */ ({});
-
-		string.split(",").forEach(name => {
-			const trimmedName = name
-				.trim()
-				.replace(
-					/^(?<quote>['"]?)(?<ruleId>.*)\k<quote>$/su,
-					"$<ruleId>",
-				);
-
-			if (trimmedName) {
-				items[trimmedName] = true;
-			}
-		});
-
-		return items;
-	}
-
-	/**
-	 * Extract the directive and the justification from a given directive comment and trim them.
-	 * @param {string} value The comment text to extract.
-	 * @returns {{directivePart: string, justificationPart: string}} The extracted directive and justification.
-	 */
-	#extractDirectiveComment(value) {
-		const match = /\s-{2,}\s/u.exec(value);
-
-		if (!match) {
-			return { directivePart: value.trim(), justificationPart: "" };
+}
+//#endregion
+//#region src/bundledDevCssUrlShim.ts
+const VIRTUAL_PREFIX = "\0lovable-bundled-dev-css-url:";
+const VIRTUAL_SUFFIX = ".shim.js";
+function bundledDevCssUrlShim() {
+	return {
+		name: "lovable-bundled-dev-css-url-shim",
+		apply: "serve",
+		enforce: "pre",
+		async resolveId(id, importer) {
+			if (!id.endsWith(".css?url")) return null;
+			const resolved = await this.resolve(id.slice(0, -4), importer, { skipSelf: true });
+			if (!resolved) return null;
+			return VIRTUAL_PREFIX + resolved.id + VIRTUAL_SUFFIX;
+		},
+		load(id) {
+			if (!id.startsWith(VIRTUAL_PREFIX) || !id.endsWith(VIRTUAL_SUFFIX)) return null;
+			const file = id.slice(29, -8);
+			const inlineSpecifier = file.includes("?") ? `${file}&inline` : `${file}?inline`;
+			return [
+				`import css from ${JSON.stringify(inlineSpecifier)};`,
+				`const b64 = typeof Buffer !== "undefined" ? Buffer.from(css, "utf8").toString("base64") : btoa(unescape(encodeURIComponent(css)));`,
+				`export default "data:text/css;base64," + b64;`
+			].join("\n");
 		}
-
-		const directive = value.slice(0, match.index).trim();
-		const justification = value.slice(match.index + match[0].length).trim();
-
-		return { directivePart: directive, justificationPart: justification };
-	}
-
-	/**
-	 * Parses a directive comment into directive text and value.
-	 * @param {string} string The string with the directive to be parsed.
-	 * @returns {DirectiveComment|undefined} The parsed directive or `undefined` if the directive is invalid.
-	 */
-	parseDirective(string) {
-		const { directivePart, justificationPart } =
-			this.#extractDirectiveComment(string);
-		const match = directivesPattern.exec(directivePart);
-
-		if (!match) {
-			return undefined;
-		}
-
-		const directiveText = match[1];
-		const directiveValue = directivePart.slice(
-			match.index + directiveText.length,
-		);
-
-		return new DirectiveComment(
-			directiveText,
-			directiveValue.trim(),
-			justificationPart,
-		);
-	}
+	};
 }
-
-/**
- * @fileoverview A collection of helper classes for implementing `SourceCode`.
- * @author Nicholas C. Zakas
- */
-
-/* eslint class-methods-use-this: off -- Required to complete interface. */
-
-//-----------------------------------------------------------------------------
-// Type Definitions
-//-----------------------------------------------------------------------------
-
-/** @typedef {$eslintcore.VisitTraversalStep} VisitTraversalStep */
-/** @typedef {$eslintcore.CallTraversalStep} CallTraversalStep */
-/** @typedef {$eslintcore.TraversalStep} TraversalStep */
-/** @typedef {$eslintcore.SourceLocation} SourceLocation */
-/** @typedef {$eslintcore.SourceLocationWithOffset} SourceLocationWithOffset */
-/** @typedef {$eslintcore.SourceRange} SourceRange */
-/** @typedef {$eslintcore.Directive} IDirective */
-/** @typedef {$eslintcore.DirectiveType} DirectiveType */
-/** @typedef {$eslintcore.SourceCodeBaseTypeOptions} SourceCodeBaseTypeOptions */
-/**
- * @typedef {import("@eslint/core").TextSourceCode<Options>} TextSourceCode<Options>
- * @template {SourceCodeBaseTypeOptions} [Options=SourceCodeBaseTypeOptions]
- */
-
-//-----------------------------------------------------------------------------
-// Helpers
-//-----------------------------------------------------------------------------
-
-/**
- * Determines if a node has ESTree-style loc information.
- * @param {object} node The node to check.
- * @returns {node is {loc:SourceLocation}} `true` if the node has ESTree-style loc information, `false` if not.
- */
-function hasESTreeStyleLoc(node) {
-	return "loc" in node;
+//#endregion
+//#region src/index.ts
+const SANDBOX_ENV_VAR = "DEV_SERVER__PROJECT_PATH";
+const LOVABLE_SANDBOX_ENV_VAR = "LOVABLE_SANDBOX";
+function isSandboxEnvironment() {
+	return process.env[LOVABLE_SANDBOX_ENV_VAR] === "1" || !!process.env[SANDBOX_ENV_VAR];
 }
-
-/**
- * Determines if a node has position-style loc information.
- * @param {object} node The node to check.
- * @returns {node is {position:SourceLocation}} `true` if the node has position-style range information, `false` if not.
- */
-function hasPosStyleLoc(node) {
-	return "position" in node;
+const TOOL_MANAGED_WATCH_IGNORES = [
+	"**/.workspace/**",
+	"**/.agents/**",
+	"**/.claude/**",
+	"**/.lovable/**",
+	"**/.tanstack/tmp/**"
+];
+function logWarning(message) {
+	console.warn(`[@lovable.dev/vite-tanstack-config] ${message}`);
 }
-
-/**
- * Determines if a node has ESTree-style range information.
- * @param {object} node The node to check.
- * @returns {node is {range:SourceRange}} `true` if the node has ESTree-style range information, `false` if not.
- */
-function hasESTreeStyleRange(node) {
-	return "range" in node;
-}
-
-/**
- * Determines if a node has position-style range information.
- * @param {object} node The node to check.
- * @returns {node is {position:SourceLocationWithOffset}} `true` if the node has position-style range information, `false` if not.
- */
-function hasPosStyleRange(node) {
-	return "position" in node;
-}
-
-/**
- * Performs binary search to find the line number containing a given target index.
- * Returns the lower bound - the index of the first element greater than the target.
- * **Please note that the `lineStartIndices` should be sorted in ascending order**.
- * - Time Complexity: O(log n) - Significantly faster than linear search for large files.
- * @param {number[]} lineStartIndices Sorted array of line start indices.
- * @param {number} targetIndex The target index to find the line number for.
- * @returns {number} The line number for the target index.
- */
-function findLineNumberBinarySearch(lineStartIndices, targetIndex) {
-	let low = 0;
-	let high = lineStartIndices.length - 1;
-
-	while (low < high) {
-		const mid = ((low + high) / 2) | 0; // Use bitwise OR to floor the division.
-
-		if (targetIndex < lineStartIndices[mid]) {
-			high = mid;
-		} else {
-			low = mid + 1;
-		}
-	}
-
-	return low;
-}
-
-//-----------------------------------------------------------------------------
-// Exports
-//-----------------------------------------------------------------------------
-
-/**
- * A class to represent a step in the traversal process where a node is visited.
- * @implements {VisitTraversalStep}
- */
-class VisitNodeStep {
-	/**
-	 * The type of the step.
-	 * @type {"visit"}
-	 * @readonly
-	 */
-	type = "visit";
-
-	/**
-	 * The kind of the step. Represents the same data as the `type` property
-	 * but it's a number for performance.
-	 * @type {1}
-	 * @readonly
-	 */
-	kind = 1;
-
-	/**
-	 * The target of the step.
-	 * @type {object}
-	 */
-	target;
-
-	/**
-	 * The phase of the step.
-	 * @type {1|2}
-	 */
-	phase;
-
-	/**
-	 * The arguments of the step.
-	 * @type {Array<any>}
-	 */
-	args;
-
-	/**
-	 * Creates a new instance.
-	 * @param {Object} options The options for the step.
-	 * @param {object} options.target The target of the step.
-	 * @param {1|2} options.phase The phase of the step.
-	 * @param {Array<any>} options.args The arguments of the step.
-	 */
-	constructor({ target, phase, args }) {
-		this.target = target;
-		this.phase = phase;
-		this.args = args;
-	}
-}
-
-/**
- * A class to represent a step in the traversal process where a
- * method is called.
- * @implements {CallTraversalStep}
- */
-class CallMethodStep {
-	/**
-	 * The type of the step.
-	 * @type {"call"}
-	 * @readonly
-	 */
-	type = "call";
-
-	/**
-	 * The kind of the step. Represents the same data as the `type` property
-	 * but it's a number for performance.
-	 * @type {2}
-	 * @readonly
-	 */
-	kind = 2;
-
-	/**
-	 * The name of the method to call.
-	 * @type {string}
-	 */
-	target;
-
-	/**
-	 * The arguments to pass to the method.
-	 * @type {Array<any>}
-	 */
-	args;
-
-	/**
-	 * Creates a new instance.
-	 * @param {Object} options The options for the step.
-	 * @param {string} options.target The target of the step.
-	 * @param {Array<any>} options.args The arguments of the step.
-	 */
-	constructor({ target, args }) {
-		this.target = target;
-		this.args = args;
-	}
-}
-
-/**
- * A class to represent a directive comment.
- * @implements {IDirective}
- */
-class Directive {
-	/**
-	 * The type of directive.
-	 * @type {DirectiveType}
-	 * @readonly
-	 */
-	type;
-
-	/**
-	 * The node representing the directive.
-	 * @type {unknown}
-	 * @readonly
-	 */
-	node;
-
-	/**
-	 * Everything after the "eslint-disable" portion of the directive,
-	 * but before the "--" that indicates the justification.
-	 * @type {string}
-	 * @readonly
-	 */
-	value;
-
-	/**
-	 * The justification for the directive.
-	 * @type {string}
-	 * @readonly
-	 */
-	justification;
-
-	/**
-	 * Creates a new instance.
-	 * @param {Object} options The options for the directive.
-	 * @param {"disable"|"enable"|"disable-next-line"|"disable-line"} options.type The type of directive.
-	 * @param {unknown} options.node The node representing the directive.
-	 * @param {string} options.value The value of the directive.
-	 * @param {string} options.justification The justification for the directive.
-	 */
-	constructor({ type, node, value, justification }) {
-		this.type = type;
-		this.node = node;
-		this.value = value;
-		this.justification = justification;
-	}
-}
-
-/**
- * Source Code Base Object
- * @template {SourceCodeBaseTypeOptions & {RootNode: object, SyntaxElementWithLoc: object}} [Options=SourceCodeBaseTypeOptions & {RootNode: object, SyntaxElementWithLoc: object}]
- * @implements {TextSourceCode<Options>}
- */
-class TextSourceCodeBase {
-	/**
-	 * The lines of text in the source code.
-	 * @type {Array<string>}
-	 */
-	#lines = [];
-
-	/**
-	 * The indices of the start of each line in the source code.
-	 * @type {Array<number>}
-	 */
-	#lineStartIndices = [0];
-
-	/**
-	 * The pattern to match lineEndings in the source code.
-	 * @type {RegExp}
-	 */
-	#lineEndingPattern;
-
-	/**
-	 * The AST of the source code.
-	 * @type {Options['RootNode']}
-	 */
-	ast;
-
-	/**
-	 * The text of the source code.
-	 * @type {string}
-	 */
-	text;
-
-	/**
-	 * Creates a new instance.
-	 * @param {Object} options The options for the instance.
-	 * @param {string} options.text The source code text.
-	 * @param {Options['RootNode']} options.ast The root AST node.
-	 * @param {RegExp} [options.lineEndingPattern] The pattern to match lineEndings in the source code. Defaults to `/\r?\n/u`.
-	 */
-	constructor({ text, ast, lineEndingPattern = /\r?\n/u }) {
-		this.ast = ast;
-		this.text = text;
-		// Remove the global(`g`) and sticky(`y`) flags from the `lineEndingPattern` to avoid issues with lastIndex.
-		this.#lineEndingPattern = new RegExp(
-			lineEndingPattern.source,
-			lineEndingPattern.flags.replace(/[gy]/gu, ""),
-		);
-	}
-
-	/**
-	 * Finds the next line in the source text and updates `#lines` and `#lineStartIndices`.
-	 * @param {string} text The text to search for the next line.
-	 * @returns {boolean} `true` if a next line was found, `false` otherwise.
-	 */
-	#findNextLine(text) {
-		const match = this.#lineEndingPattern.exec(text);
-
-		if (!match) {
-			return false;
-		}
-
-		this.#lines.push(text.slice(0, match.index));
-		this.#lineStartIndices.push(
-			(this.#lineStartIndices.at(-1) ?? 0) +
-				match.index +
-				match[0].length,
-		);
-
+const NITRO_DEFAULT_PRESET_MIN = [
+	3,
+	0,
+	260603
+];
+async function nitroSupportsDefaultPreset() {
+	try {
+		const { createRequire } = await import("node:module");
+		const { version } = createRequire(`${process.cwd()}/package.json`)("nitro/package.json");
+		const match = typeof version === "string" ? /^(\d+)\.(\d+)\.(\d+)/.exec(version) : null;
+		if (!match) return true;
+		const parts = [
+			Number(match[1]),
+			Number(match[2]),
+			Number(match[3])
+		];
+		for (let i = 0; i < 3; i++) if (parts[i] !== NITRO_DEFAULT_PRESET_MIN[i]) return parts[i] > NITRO_DEFAULT_PRESET_MIN[i];
+		return true;
+	} catch {
 		return true;
 	}
-
-	/**
-	 * Ensures `#lines` is lazily calculated from the source text.
-	 * @returns {void}
-	 */
-	#ensureLines() {
-		// If `#lines` has already been calculated, do nothing.
-		if (this.#lines.length === this.#lineStartIndices.length) {
-			return;
-		}
-
-		while (
-			this.#findNextLine(this.text.slice(this.#lineStartIndices.at(-1)))
-		) {
-			// Continue parsing until no more matches are found.
-		}
-
-		this.#lines.push(this.text.slice(this.#lineStartIndices.at(-1)));
-
-		Object.freeze(this.#lines);
-	}
-
-	/**
-	 * Ensures `#lineStartIndices` is lazily calculated up to the specified index.
-	 * @param {number} index The index of a character in a file.
-	 * @returns {void}
-	 */
-	#ensureLineStartIndicesFromIndex(index) {
-		// If we've already parsed up to or beyond this index, do nothing.
-		if (index <= (this.#lineStartIndices.at(-1) ?? 0)) {
-			return;
-		}
-
-		while (
-			index > (this.#lineStartIndices.at(-1) ?? 0) &&
-			this.#findNextLine(this.text.slice(this.#lineStartIndices.at(-1)))
-		) {
-			// Continue parsing until no more matches are found.
-		}
-	}
-
-	/**
-	 * Ensures `#lineStartIndices` is lazily calculated up to the specified loc.
-	 * @param {Object} loc A line/column location.
-	 * @param {number} loc.line The line number of the location. (0 or 1-indexed based on language.)
-	 * @param {number} lineStart The line number at which the parser starts counting.
-	 * @returns {void}
-	 */
-	#ensureLineStartIndicesFromLoc(loc, lineStart) {
-		// Calculate line indices up to the potentially next line, as it is needed for the follow‑up calculation.
-		const nextLocLineIndex = loc.line - lineStart + 1;
-		const lastCalculatedLineIndex = this.#lineStartIndices.length - 1;
-		let additionalLinesNeeded = nextLocLineIndex - lastCalculatedLineIndex;
-
-		// If we've already parsed up to or beyond this line, do nothing.
-		if (additionalLinesNeeded <= 0) {
-			return;
-		}
-
-		while (
-			additionalLinesNeeded > 0 &&
-			this.#findNextLine(this.text.slice(this.#lineStartIndices.at(-1)))
-		) {
-			// Continue parsing until no more matches are found or we have enough lines.
-			additionalLinesNeeded -= 1;
-		}
-	}
-
-	/**
-	 * Returns the loc information for the given node or token.
-	 * @param {Options['SyntaxElementWithLoc']} nodeOrToken The node or token to get the loc information for.
-	 * @returns {SourceLocation} The loc information for the node or token.
-	 * @throws {Error} If the node or token does not have loc information.
-	 */
-	getLoc(nodeOrToken) {
-		if (hasESTreeStyleLoc(nodeOrToken)) {
-			return nodeOrToken.loc;
-		}
-
-		if (hasPosStyleLoc(nodeOrToken)) {
-			return nodeOrToken.position;
-		}
-
-		throw new Error(
-			"Custom getLoc() method must be implemented in the subclass.",
-		);
-	}
-
-	/**
-	 * Converts a source text index into a `{ line: number, column: number }` pair.
-	 * @param {number} index The index of a character in a file.
-	 * @throws {TypeError|RangeError} If non-numeric index or index out of range.
-	 * @returns {{line: number, column: number}} A `{ line: number, column: number }` location object with 0 or 1-indexed line and 0 or 1-indexed column based on language.
-	 * @public
-	 */
-	getLocFromIndex(index) {
-		if (typeof index !== "number") {
-			throw new TypeError("Expected `index` to be a number.");
-		}
-
-		if (index < 0 || index > this.text.length) {
-			throw new RangeError(
-				`Index out of range (requested index ${index}, but source text has length ${this.text.length}).`,
-			);
-		}
-
-		const {
-			start: { line: lineStart, column: columnStart },
-			end: { line: lineEnd, column: columnEnd },
-		} = this.getLoc(this.ast);
-
-		// If the index is at the start, return the start location of the root node.
-		if (index === 0) {
-			return {
-				line: lineStart,
-				column: columnStart,
-			};
-		}
-
-		// If the index is `this.text.length`, return the location one "spot" past the last character of the file.
-		if (index === this.text.length) {
-			return {
-				line: lineEnd,
-				column: columnEnd,
-			};
-		}
-
-		// Ensure `#lineStartIndices` are lazily calculated.
-		this.#ensureLineStartIndicesFromIndex(index);
-
-		/*
-		 * To figure out which line `index` is on, determine the last place at which index could
-		 * be inserted into `#lineStartIndices` to keep the list sorted.
-		 */
-		const lineNumber =
-			(index >= (this.#lineStartIndices.at(-1) ?? 0)
-				? this.#lineStartIndices.length
-				: findLineNumberBinarySearch(this.#lineStartIndices, index)) -
-			1 +
-			lineStart;
-
-		return {
-			line: lineNumber,
-			column:
-				index -
-				this.#lineStartIndices[lineNumber - lineStart] +
-				columnStart,
-		};
-	}
-
-	/**
-	 * Converts a `{ line: number, column: number }` pair into a source text index.
-	 * @param {Object} loc A line/column location.
-	 * @param {number} loc.line The line number of the location. (0 or 1-indexed based on language.)
-	 * @param {number} loc.column The column number of the location. (0 or 1-indexed based on language.)
-	 * @throws {TypeError|RangeError} If `loc` is not an object with a numeric
-	 * `line` and `column`, if the `line` is less than or equal to zero or
-	 * the `line` or `column` is out of the expected range.
-	 * @returns {number} The index of the line/column location in a file.
-	 * @public
-	 */
-	getIndexFromLoc(loc) {
-		if (
-			loc === null ||
-			typeof loc !== "object" ||
-			typeof loc.line !== "number" ||
-			typeof loc.column !== "number"
-		) {
-			throw new TypeError(
-				"Expected `loc` to be an object with numeric `line` and `column` properties.",
-			);
-		}
-
-		const {
-			start: { line: lineStart, column: columnStart },
-			end: { line: lineEnd, column: columnEnd },
-		} = this.getLoc(this.ast);
-
-		if (loc.line < lineStart || lineEnd < loc.line) {
-			throw new RangeError(
-				`Line number out of range (line ${loc.line} requested). Valid range: ${lineStart}-${lineEnd}`,
-			);
-		}
-
-		// If the loc is at the start, return the start index of the root node.
-		if (loc.line === lineStart && loc.column === columnStart) {
-			return 0;
-		}
-
-		// If the loc is at the end, return the index one "spot" past the last character of the file.
-		if (loc.line === lineEnd && loc.column === columnEnd) {
-			return this.text.length;
-		}
-
-		// Ensure `#lineStartIndices` are lazily calculated.
-		this.#ensureLineStartIndicesFromLoc(loc, lineStart);
-
-		const isLastLine = loc.line === lineEnd;
-		const lineStartIndex = this.#lineStartIndices[loc.line - lineStart];
-		const lineEndIndex = isLastLine
-			? this.text.length
-			: this.#lineStartIndices[loc.line - lineStart + 1];
-		const positionIndex = lineStartIndex + loc.column - columnStart;
-
-		if (
-			loc.column < columnStart ||
-			(isLastLine && positionIndex > lineEndIndex) ||
-			(!isLastLine && positionIndex >= lineEndIndex)
-		) {
-			throw new RangeError(
-				`Column number out of range (column ${loc.column} requested). Valid range for line ${loc.line}: ${columnStart}-${lineEndIndex - lineStartIndex + columnStart + (isLastLine ? 0 : -1)}`,
-			);
-		}
-
-		return positionIndex;
-	}
-
-	/**
-	 * Returns the range information for the given node or token.
-	 * @param {Options['SyntaxElementWithLoc']} nodeOrToken The node or token to get the range information for.
-	 * @returns {SourceRange} The range information for the node or token.
-	 * @throws {Error} If the node or token does not have range information.
-	 */
-	getRange(nodeOrToken) {
-		if (hasESTreeStyleRange(nodeOrToken)) {
-			return nodeOrToken.range;
-		}
-
-		if (hasPosStyleRange(nodeOrToken)) {
-			return [
-				nodeOrToken.position.start.offset,
-				nodeOrToken.position.end.offset,
-			];
-		}
-
-		throw new Error(
-			"Custom getRange() method must be implemented in the subclass.",
-		);
-	}
-
-	/* eslint-disable no-unused-vars -- Required to complete interface. */
-	/**
-	 * Returns the parent of the given node.
-	 * @param {Options['SyntaxElementWithLoc']} node The node to get the parent of.
-	 * @returns {Options['SyntaxElementWithLoc']|undefined} The parent of the node.
-	 * @throws {Error} If the method is not implemented in the subclass.
-	 */
-	getParent(node) {
-		throw new Error("Not implemented.");
-	}
-	/* eslint-enable no-unused-vars -- Required to complete interface. */
-
-	/**
-	 * Gets all the ancestors of a given node
-	 * @param {Options['SyntaxElementWithLoc']} node The node
-	 * @returns {Array<Options['SyntaxElementWithLoc']>} All the ancestor nodes in the AST, not including the provided node, starting
-	 * from the root node at index 0 and going inwards to the parent node.
-	 * @throws {TypeError} When `node` is missing.
-	 */
-	getAncestors(node) {
-		if (!node) {
-			throw new TypeError("Missing required argument: node.");
-		}
-
-		const ancestorsStartingAtParent = [];
-
-		for (
-			let ancestor = this.getParent(node);
-			ancestor;
-			ancestor = this.getParent(ancestor)
-		) {
-			ancestorsStartingAtParent.push(ancestor);
-		}
-
-		return ancestorsStartingAtParent.reverse();
-	}
-
-	/**
-	 * Gets the source code for the given node.
-	 * @param {Options['SyntaxElementWithLoc']} [node] The AST node to get the text for.
-	 * @param {number} [beforeCount] The number of characters before the node to retrieve.
-	 * @param {number} [afterCount] The number of characters after the node to retrieve.
-	 * @returns {string} The text representing the AST node.
-	 * @public
-	 */
-	getText(node, beforeCount, afterCount) {
-		if (node) {
-			const range = this.getRange(node);
-			return this.text.slice(
-				Math.max(range[0] - (beforeCount || 0), 0),
-				range[1] + (afterCount || 0),
-			);
-		}
-		return this.text;
-	}
-
-	/**
-	 * Gets the entire source text split into an array of lines.
-	 * @returns {Array<string>} The source text as an array of lines.
-	 * @public
-	 */
-	get lines() {
-		this.#ensureLines(); // Ensure `#lines` is lazily calculated.
-
-		return this.#lines;
-	}
-
-	/**
-	 * Traverse the source code and return the steps that were taken.
-	 * @returns {Iterable<TraversalStep>} The steps that were taken while traversing the source code.
-	 */
-	traverse() {
-		throw new Error("Not implemented.");
+}
+function validateHeaders(config) {
+	const headers = config.server?.headers;
+	if (!headers) return;
+	const headerKeys = Object.keys(headers);
+	if (headerKeys.length > 0) logWarning(`Your config includes server headers that will be removed in sandbox mode: ${headerKeys.join(", ")}`);
+}
+function isExternalUrl(url) {
+	try {
+		const parsed = new URL(url);
+		return ![
+			"localhost",
+			"127.0.0.1",
+			"::1",
+			"0.0.0.0",
+			"::"
+		].includes(parsed.hostname);
+	} catch {
+		return false;
 	}
 }
+function validateProxy(config) {
+	const proxy = config.server?.proxy;
+	if (!proxy) return;
+	for (const [path, proxyConfig] of Object.entries(proxy)) if (typeof proxyConfig === "string") {
+		if (isExternalUrl(proxyConfig)) logWarning(`Proxy '${path}' targets external URL: ${proxyConfig}. This may cause issues in the sandbox environment.`);
+	} else if (proxyConfig) {
+		const target = typeof proxyConfig.target === "string" ? proxyConfig.target : void 0;
+		if (target && isExternalUrl(target)) logWarning(`Proxy '${path}' targets external URL: ${target}. This may cause issues in the sandbox environment.`);
+		if (proxyConfig.ws) logWarning(`Proxy '${path}' enables WebSocket proxying, which may interfere with HMR.`);
+		if (proxyConfig.changeOrigin) logWarning(`Proxy '${path}' changes origin, which may cause CORS issues.`);
+	}
+}
+function validateCors(config) {
+	if (config.server?.cors && typeof config.server.cors !== "boolean" && config.server.cors !== null) logWarning("Custom CORS config detected. Sandbox requires specific CORS settings for proxy compatibility.");
+}
+function validatePort(config) {
+	if (config.server?.port && config.server.port !== 8080) logWarning(`Port ${config.server.port} configured, but sandbox requires port 8080. Using 8080.`);
+}
+function validateConfig(config) {
+	validateHeaders(config);
+	validateProxy(config);
+	validateCors(config);
+	validatePort(config);
+}
+function cleanServerConfig(config) {
+	if (config.server?.headers || config.server?.cors || config.server?.proxy) {
+		const { headers: _headers, cors: _cors, proxy: _proxy, ...serverRest } = config.server;
+		return {
+			...config,
+			server: serverRest
+		};
+	}
+	return config;
+}
+function applyWatchDebounceDefaults(config) {
+	const existingWatch = config.server?.watch ?? {};
+	const existingAwaitWriteFinish = existingWatch.awaitWriteFinish;
+	const hasAwaitWriteFinishObject = !!existingAwaitWriteFinish && typeof existingAwaitWriteFinish === "object" && !Array.isArray(existingAwaitWriteFinish);
+	return (0, vite.mergeConfig)(config, { server: { watch: {
+		...existingWatch,
+		awaitWriteFinish: {
+			...hasAwaitWriteFinishObject ? existingAwaitWriteFinish : {},
+			stabilityThreshold: 1e3,
+			pollInterval: 100
+		}
+	} } });
+}
+const SSR_CAPTURE_KEY = "__LOVABLE_TANSTACK_CAPTURE_SSR_ERROR__";
+const HANDLER_RAN_KEY = "__LOVABLE_TANSTACK_HANDLER_RAN__";
+const BUILD_ERROR_MESSAGE = /transform failed with \d+ error|failed to parse source/i;
+function isBuildError(error) {
+	if (typeof error === "string") return BUILD_ERROR_MESSAGE.test(error);
+	if (!error || typeof error !== "object") return false;
+	const e = error;
+	if (typeof e.plugin === "string" && (e.plugin.startsWith("vite:") || e.plugin.startsWith("esbuild:"))) return true;
+	if (e.frame != null && e.loc != null) return true;
+	if (Array.isArray(e.errors) && e.errors.length > 0 && e.errors.every((x) => x != null && typeof x === "object" && "text" in x && "location" in x)) return true;
+	const message = typeof e.message === "string" ? e.message : "";
+	return BUILD_ERROR_MESSAGE.test(message);
+}
+const BUILD_DIAGNOSTICS_PLUGIN_NAME = "lovable-build-error-diagnostics";
+const MAX_DIAGNOSTIC_JSON_LENGTH = 6e3;
+const MAX_DIAGNOSTIC_STRING_LENGTH = 2e3;
+const MAX_DIAGNOSTIC_NESTED_ERRORS = 20;
+const MAX_DIAGNOSTIC_DEPTH = 4;
+const COMPACT_DIAGNOSTIC_STRING_LENGTH = 300;
+const COMPACT_DIAGNOSTIC_NESTED_ERRORS = 3;
+const COMPACT_DIAGNOSTIC_DEPTH = 3;
+const DIAGNOSTIC_ERROR_FIELDS = [
+	"name",
+	"message",
+	"plugin",
+	"pluginCode",
+	"id",
+	"moduleId",
+	"hook",
+	"code",
+	"loc",
+	"frame",
+	"stack",
+	"cause"
+];
+function truncateDiagnosticString(value) {
+	return truncateDiagnosticStringTo(value, MAX_DIAGNOSTIC_STRING_LENGTH);
+}
+function truncateDiagnosticStringTo(value, maxLength) {
+	return value.length > maxLength ? `${value.slice(0, maxLength)}...[truncated]` : value;
+}
+function readDiagnosticProperty(value, key) {
+	try {
+		return value[key];
+	} catch (error) {
+		return `[unreadable: ${error instanceof Error ? error.message : String(error)}]`;
+	}
+}
+function serializeOwnDiagnosticProperties(value, depth, seen) {
+	const keys = Object.keys(value);
+	const output = {};
+	for (const key of keys.slice(0, MAX_DIAGNOSTIC_NESTED_ERRORS)) {
+		const nested = readDiagnosticProperty(value, key);
+		if (nested == null || nested === "") continue;
+		output[key] = serializeDiagnosticValue(nested, depth + 1, seen);
+	}
+	if (keys.length > MAX_DIAGNOSTIC_NESTED_ERRORS) output.properties_truncated = keys.length - MAX_DIAGNOSTIC_NESTED_ERRORS;
+	return output;
+}
+function describeDiagnosticPrimitive(value) {
+	if (typeof value === "symbol") return value.description ? `Symbol(${value.description})` : "Symbol()";
+	if (typeof value === "bigint") return value.toString();
+	if (typeof value === "function") return `[function ${value.name || "anonymous"}]`;
+	return String(value);
+}
+function describeDiagnosticObject(value) {
+	const constructorName = value.constructor?.name;
+	if (typeof constructorName === "string" && constructorName !== "" && constructorName !== "Object") return `[${constructorName}]`;
+	return Object.prototype.toString.call(value);
+}
+function serializeDiagnosticValue(value, depth, seen) {
+	if (value == null) return value;
+	if (typeof value === "string") return truncateDiagnosticString(value);
+	if (typeof value === "number" || typeof value === "boolean") return value;
+	if (typeof value !== "object") return describeDiagnosticPrimitive(value);
+	if (seen.has(value)) return "[circular]";
+	if (depth >= MAX_DIAGNOSTIC_DEPTH) return "[max depth]";
+	seen.add(value);
+	try {
+		if (Array.isArray(value)) return value.slice(0, MAX_DIAGNOSTIC_NESTED_ERRORS).map((item) => serializeDiagnosticValue(item, depth + 1, seen));
+		const record = value;
+		const output = {};
+		for (const field of DIAGNOSTIC_ERROR_FIELDS) {
+			if (!(field in record)) continue;
+			const nested = readDiagnosticProperty(record, field);
+			if (nested == null || nested === "") continue;
+			output[field] = serializeDiagnosticValue(nested, depth + 1, seen);
+		}
+		const nestedErrors = readDiagnosticProperty(record, "errors");
+		if (Array.isArray(nestedErrors)) {
+			output.errors = nestedErrors.slice(0, MAX_DIAGNOSTIC_NESTED_ERRORS).map((item) => serializeDiagnosticValue(item, depth + 1, seen));
+			if (nestedErrors.length > MAX_DIAGNOSTIC_NESTED_ERRORS) output.errors_truncated = nestedErrors.length - MAX_DIAGNOSTIC_NESTED_ERRORS;
+		} else if (nestedErrors != null && nestedErrors !== "") output.errors = serializeDiagnosticValue(nestedErrors, depth + 1, seen);
+		if (Object.keys(output).length > 0) return output;
+		const ownProperties = serializeOwnDiagnosticProperties(record, depth, seen);
+		return Object.keys(ownProperties).length > 0 ? ownProperties : describeDiagnosticObject(value);
+	} catch (error) {
+		return `[unreadable object: ${error instanceof Error ? error.message : String(error)}]`;
+	} finally {
+		seen.delete(value);
+	}
+}
+function compactDiagnosticValue(value, depth) {
+	if (value == null) return value;
+	if (typeof value === "string") return truncateDiagnosticStringTo(value, COMPACT_DIAGNOSTIC_STRING_LENGTH);
+	if (typeof value === "number" || typeof value === "boolean") return value;
+	if (typeof value !== "object") return describeDiagnosticPrimitive(value);
+	if (depth >= COMPACT_DIAGNOSTIC_DEPTH) return "[max depth]";
+	try {
+		if (Array.isArray(value)) {
+			const items = value.slice(0, COMPACT_DIAGNOSTIC_NESTED_ERRORS).map((item) => compactDiagnosticValue(item, depth + 1));
+			if (value.length > COMPACT_DIAGNOSTIC_NESTED_ERRORS) items.push(`[${value.length - COMPACT_DIAGNOSTIC_NESTED_ERRORS} items truncated]`);
+			return items;
+		}
+		const record = value;
+		const output = {};
+		const keys = Object.keys(record);
+		for (const key of keys.slice(0, MAX_DIAGNOSTIC_NESTED_ERRORS)) {
+			const nested = readDiagnosticProperty(record, key);
+			if (nested == null || nested === "") continue;
+			output[key] = compactDiagnosticValue(nested, depth + 1);
+		}
+		if (keys.length > MAX_DIAGNOSTIC_NESTED_ERRORS) output.properties_truncated = keys.length - MAX_DIAGNOSTIC_NESTED_ERRORS;
+		return output;
+	} catch (error) {
+		return `[unreadable object: ${error instanceof Error ? error.message : String(error)}]`;
+	}
+}
+function stringifyDiagnosticPayload(diagnostics) {
+	const full = JSON.stringify(diagnostics);
+	if (full && full.length <= MAX_DIAGNOSTIC_JSON_LENGTH) return full;
+	const compact = compactDiagnosticValue(diagnostics, 0);
+	const compactPayload = compact != null && typeof compact === "object" && !Array.isArray(compact) ? {
+		...compact,
+		diagnostics_truncated: true
+	} : {
+		diagnostics_truncated: true,
+		value: compact
+	};
+	const compactJson = JSON.stringify(compactPayload);
+	if (compactJson.length <= MAX_DIAGNOSTIC_JSON_LENGTH) return compactJson;
+	return JSON.stringify({
+		diagnostics_truncated: true,
+		message: "Diagnostic payload exceeded output budget."
+	});
+}
+function lovableBuildErrorDiagnostics() {
+	let emitted = false;
+	const emitDiagnostics = (error) => {
+		if (!error || emitted) return;
+		emitted = true;
+		try {
+			const output = `\n[lovable-build-error-diagnostics]\n${stringifyDiagnosticPayload(serializeDiagnosticValue(error, 0, /* @__PURE__ */ new WeakSet()))}\n[/lovable-build-error-diagnostics]\n`;
+			let written = false;
+			const write = () => {
+				if (written) return;
+				written = true;
+				try {
+					process.stderr.write(output);
+				} catch {}
+			};
+			setImmediate(write);
+			process.once("exit", write);
+		} catch {}
+	};
+	return {
+		name: BUILD_DIAGNOSTICS_PLUGIN_NAME,
+		apply: "build",
+		buildEnd(error) {
+			emitDiagnostics(error);
+		},
+		renderError(error) {
+			emitDiagnostics(error);
+		}
+	};
+}
+const NODEJS_COMPAT_DEFAULT_ON_DATE = "2026-08-04";
+const SANDBOX_WRANGLER_CONFIG_PATH = "dist/server/wrangler.json";
+function stripRedundantNodejsCompatFlag() {
+	let root = process.cwd();
+	return {
+		name: "lovable-strip-redundant-nodejs-compat",
+		apply: "build",
+		configResolved(config) {
+			root = config.root;
+		},
+		buildApp: {
+			order: "post",
+			handler: async () => {
+				const { readFile, writeFile } = await import("node:fs/promises");
+				const configPath = (await import("node:path")).join(root, SANDBOX_WRANGLER_CONFIG_PATH);
+				let parsed;
+				try {
+					parsed = JSON.parse(await readFile(configPath, "utf8"));
+				} catch {
+					return;
+				}
+				if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return;
+				const config = parsed;
+				if (typeof config.compatibility_date !== "string") return;
+				if (config.compatibility_date < NODEJS_COMPAT_DEFAULT_ON_DATE) return;
+				if (!Array.isArray(config.compatibility_flags)) return;
+				const flags = config.compatibility_flags.filter((flag) => flag !== "nodejs_compat");
+				if (flags.length === config.compatibility_flags.length) return;
+				await writeFile(configPath, JSON.stringify({
+					...config,
+					compatibility_flags: flags
+				}, null, 2));
+			}
+		}
+	};
+}
+function devSsrErrorLogger() {
+	let lastCapture;
+	const CAPTURE_TTL_MS = 5e3;
+	const handlerRanFlag = Symbol("lovableHandlerRan");
+	const capture = (error) => {
+		lastCapture = {
+			error,
+			at: Date.now()
+		};
+	};
+	const consumeCapture = () => {
+		if (!lastCapture) return void 0;
+		if (Date.now() - lastCapture.at > CAPTURE_TTL_MS) {
+			lastCapture = void 0;
+			return;
+		}
+		const { error } = lastCapture;
+		lastCapture = void 0;
+		return error;
+	};
+	return {
+		name: "dev-ssr-error-logger",
+		apply: "serve",
+		configureServer(server) {
+			globalThis[SSR_CAPTURE_KEY] = capture;
+			globalThis[HANDLER_RAN_KEY] = (event) => {
+				const res = event?.node?.res;
+				if (res) res[handlerRanFlag] = true;
+			};
+			const g = globalThis;
+			if (typeof g.addEventListener === "function") {
+				const addListener = g.addEventListener;
+				addListener("error", (e) => capture(e.error ?? e));
+				addListener("unhandledrejection", (e) => capture(e.reason));
+			}
+			const onUnhandledRejection = (reason) => capture(reason);
+			process.on("unhandledRejection", onUnhandledRejection);
+			server.httpServer?.once("close", () => {
+				process.off("unhandledRejection", onUnhandledRejection);
+			});
+			server.middlewares.use((req, res, next) => {
+				let handled = false;
+				const handleErrorResponse = () => {
+					if (handled || res.statusCode < 500) return;
+					handled = true;
+					const captured = consumeCapture();
+					const ranHandler = Boolean(res[handlerRanFlag]);
+					let source;
+					if (!ranHandler) source = "vite";
+					else if (isBuildError(captured)) source = "build";
+					else source = "app";
+					if (!res.headersSent) try {
+						res.setHeader("x-lovable-error-source", source);
+					} catch {}
+					const where = [req.method, req.url].filter(Boolean).join(" ") || "the request";
+					let data;
+					if (captured instanceof Error) data = {
+						name: captured.name,
+						message: captured.message,
+						stack: captured.stack
+					};
+					else if (typeof captured === "string" && captured.length > 0) data = {
+						name: "Error",
+						message: captured
+					};
+					else if (ranHandler) data = { message: `The app returned ${res.statusCode} while handling ${where}. The error was handled by a route or error boundary, so no stack was captured — check the failing loader/route code and the dev server output.` };
+					else data = { message: `Dev server returned ${res.statusCode} for ${where} before the app handler ran. This is usually a Vite build/transform error — check the dev server output for the underlying error.` };
+					try {
+						server.ws.send({
+							type: "custom",
+							event: "server-ssr-error",
+							data
+						});
+					} catch {}
+				};
+				const origWriteHead = res.writeHead.bind(res);
+				res.writeHead = (...args) => {
+					if (typeof args[0] === "number") res.statusCode = args[0];
+					handleErrorResponse();
+					return origWriteHead(...args);
+				};
+				const origEnd = res.end.bind(res);
+				res.end = (...args) => {
+					handleErrorResponse();
+					return origEnd(...args);
+				};
+				next();
+			});
+		},
+		transform(code, id) {
+			const normalizedId = id.replace(/\\/g, "/");
+			if (!(normalizedId.includes("/@tanstack/start-server-core/src/request-response.ts") || normalizedId.includes("/@tanstack/start-server-core/dist/esm/request-response.js"))) return null;
+			const needle = "handler(request, requestOpts)";
+			if (!code.includes(needle)) return null;
+			return code.replace(needle, `(globalThis.${HANDLER_RAN_KEY}?.(typeof h3Event === "undefined" ? undefined : h3Event), Promise.resolve(${needle}).catch((err) => { globalThis.${SSR_CAPTURE_KEY}?.(err); throw err; }))`);
+		}
+	};
+}
+function devServerFnErrorLogger() {
+	const HMR_SEND_KEY = "__TANSTACK_SERVER_FN_HMR_SEND__";
+	return {
+		name: "dev-server-fn-error-logger",
+		apply: "serve",
+		enforce: "pre",
+		configureServer(server) {
+			globalThis[HMR_SEND_KEY] = (data) => {
+				server.ws.send({
+					type: "custom",
+					event: "server-fn-error",
+					data
+				});
+			};
+		},
+		transform(code, id) {
+			const normalizedId = id.replace(/\\/g, "/");
+			if (!(normalizedId.includes("/@tanstack/start-server-core/src/server-functions-handler.ts") || normalizedId.includes("/@tanstack/start-server-core/dist/esm/server-functions-handler.js"))) return null;
+			const needle = "const unwrapped = res.result || res.error";
+			if (!code.includes(needle)) return null;
+			return code.replace(needle, `${needle}
 
-exports.CallMethodStep = CallMethodStep;
-exports.ConfigCommentParser = ConfigCommentParser;
-exports.Directive = Directive;
-exports.TextSourceCodeBase = TextSourceCodeBase;
-exports.VisitNodeStep = VisitNodeStep;
+      if (res?.error) {
+        const err = res.error
+        const payload = {
+          source: 'tanstack',
+          type: 'server-fn-error',
+          method: request.method,
+          url: request.url,
+          name: err?.name ?? 'Error',
+          message: err?.message ?? String(err),
+          stack: typeof err?.stack === 'string' ? err.stack : undefined,
+        }
+        globalThis.${HMR_SEND_KEY}?.(payload)
+      }`);
+		}
+	};
+}
+function defineConfig(configOrOptions = {}) {
+	return async (env) => {
+		const { command, mode } = env;
+		const isSandbox = isSandboxEnvironment();
+		const isDevBuild = command === "build" && mode === "development";
+		let options;
+		if (typeof configOrOptions === "function") options = { vite: await Promise.resolve(configOrOptions(env)) };
+		else if (configOrOptions instanceof Promise) options = { vite: await configOrOptions };
+		else {
+			const optionObject = configOrOptions && typeof configOrOptions === "object" ? configOrOptions : {};
+			if ("cloudflare" in optionObject) if (optionObject.cloudflare === false && !("nitro" in optionObject)) {
+				optionObject.nitro = false;
+				logWarning("`cloudflare: false` is deprecated in v2 — migrated to `nitro: false`. Update your config to drop the warning.");
+			} else logWarning("The `cloudflare` option was removed in v2. Use `nitro: false` to disable the deploy plugin, or `nitro: { preset: '...' }` to configure it. The `cloudflare` setting is being ignored.");
+			options = "vite" in optionObject || "serverFnErrorLogger" in optionObject || "ssrErrorLogger" in optionObject || "nitro" in optionObject || "tanstackStart" in optionObject || "react" in optionObject || "envDefine" in optionObject || "hmrGate" in optionObject ? optionObject : { vite: optionObject };
+		}
+		const internalPlugins = [];
+		if (mode === "development") {
+			const { devtools } = await import("@tanstack/devtools-vite");
+			internalPlugins.push(devtools({
+				logging: false,
+				eventBusConfig: { enabled: false },
+				enhancedLogs: { enabled: false },
+				consolePiping: { enabled: false },
+				removeDevtoolsOnBuild: false,
+				injectSource: { enabled: true }
+			}));
+		}
+		const tailwindcss = (await import("@tailwindcss/vite")).default;
+		internalPlugins.push(tailwindcss());
+		const tsConfigPaths = (await import("vite-tsconfig-paths")).default;
+		internalPlugins.push(tsConfigPaths({ projects: ["./tsconfig.json"] }));
+		if (options.serverFnErrorLogger !== false) internalPlugins.push(devServerFnErrorLogger());
+		if (options.ssrErrorLogger !== false) internalPlugins.push(devSsrErrorLogger());
+		if (command === "build" && isSandbox) internalPlugins.push(lovableBuildErrorDiagnostics());
+		const { tanstackStart } = await import("@tanstack/react-start/plugin/vite");
+		const tanstackStartOptions = (0, vite.mergeConfig)({ importProtection: {
+			behavior: "error",
+			client: {
+				files: ["**/server/**"],
+				specifiers: ["server-only"]
+			}
+		} }, options.tanstackStart ?? {});
+		internalPlugins.push(tanstackStart(tanstackStartOptions));
+		const explicitNitro = options.nitro === true || typeof options.nitro === "object" && options.nitro !== null;
+		if (options.nitro !== false && command === "build") {
+			let nitroMod;
+			try {
+				nitroMod = await import("nitro/vite");
+			} catch (err) {
+				if (explicitNitro || isSandbox) {
+					const reason = explicitNitro ? `an explicit \`nitro\` option (${options.nitro === true ? "true" : "{ ... }"}) was set in vite.config.ts` : "running inside a Lovable sandbox";
+					throw new Error(`[@lovable.dev/vite-tanstack-config] ${reason}, but the \`nitro\` package isn't installed. Add \`nitro\` to your devDependencies (matches peerDependency >=3.0.260429-beta). Original import error: ${err instanceof Error ? err.message : String(err)}`);
+				}
+			}
+			if (nitroMod) {
+				const { nitro } = nitroMod;
+				const userNitroOpts = typeof options.nitro === "object" && options.nitro ? options.nitro : {};
+				const nitroOpts = {
+					defaultPreset: "cloudflare-module",
+					...userNitroOpts
+				};
+				if (isSandbox) {
+					delete nitroOpts.defaultPreset;
+					nitroOpts.preset = "cloudflare-module";
+					nitroOpts.output = {
+						dir: "dist",
+						serverDir: "dist/server",
+						publicDir: "dist/client"
+					};
+					nitroOpts.cloudflare = {
+						nodeCompat: true,
+						deployConfig: true,
+						...userNitroOpts.cloudflare
+					};
+				} else if (!nitroOpts.preset && !await nitroSupportsDefaultPreset()) logWarning("The installed `nitro` predates the `defaultPreset` option (3.0.260603-beta), so the Cloudflare fallback is ignored and a zero-config build may target Node instead. Upgrade nitro to >=3.0.260603-beta, or set an explicit `nitro: { preset: \"cloudflare-module\" }`.");
+				internalPlugins.push(nitro(nitroOpts));
+				if (isSandbox) internalPlugins.push(stripRedundantNodejsCompatFlag());
+			}
+		}
+		const viteReact = (await import("@vitejs/plugin-react")).default;
+		internalPlugins.push(viteReact(options.react));
+		if (command === "serve") {
+			const hmrGateOpt = options.hmrGate;
+			if (isSandbox ? hmrGateOpt !== false : !!hmrGateOpt) {
+				const { hmrGatePlugin } = await import("@lovable.dev/vite-plugin-hmr-gate");
+				const hmrGateOptions = typeof hmrGateOpt === "object" ? hmrGateOpt : {};
+				internalPlugins.push(hmrGatePlugin(hmrGateOptions));
+			}
+		}
+		if (command === "serve" && isSandbox) {
+			const { devServerBridgePlugin } = await import("@lovable.dev/vite-plugin-dev-server-bridge");
+			internalPlugins.push(devServerBridgePlugin());
+		}
+		if (command === "serve") internalPlugins.push(lovableAssetsProxyPlugin());
+		let envDefine = {};
+		if (options.envDefine !== false) {
+			const loadedEnv = (0, vite.loadEnv)(mode, process.cwd(), "VITE_");
+			for (const [key, value] of Object.entries(loadedEnv)) envDefine[`import.meta.env.${key}`] = JSON.stringify(value);
+		}
+		let config = {
+			define: envDefine,
+			...isDevBuild ? {
+				environments: { client: { define: { "process.env.NODE_ENV": JSON.stringify("development") } } },
+				esbuild: { keepNames: true }
+			} : {},
+			css: { transformer: "lightningcss" },
+			resolve: {
+				alias: { "@": `${process.cwd()}/src` },
+				dedupe: [
+					"react",
+					"react-dom",
+					"react/jsx-runtime",
+					"react/jsx-dev-runtime",
+					"@tanstack/react-query",
+					"@tanstack/query-core"
+				]
+			},
+			optimizeDeps: {
+				include: [
+					"react",
+					"react-dom",
+					"react-dom/client",
+					"react/jsx-runtime",
+					"react/jsx-dev-runtime"
+				],
+				ignoreOutdatedRequests: true
+			},
+			plugins: [...internalPlugins, ...options.plugins ?? []]
+		};
+		if (options.vite) config = (0, vite.mergeConfig)(config, options.vite);
+		if (command === "serve" && isSandbox && bundledDevRequested()) {
+			const viteVersion = await resolveInstalledViteVersion();
+			if (viteVersionSupportsBundledDev(viteVersion)) config = (0, vite.mergeConfig)(config, {
+				experimental: { bundledDev: true },
+				plugins: [bundledDevCssUrlShim()]
+			});
+			else logWarning(`Bundled dev requested (${BUNDLED_DEV_ENV_VAR}) but the installed vite (${viteVersion ?? "unresolved"}) is outside the supported 8.1.x range — starting classic dev.`);
+		}
+		if (isSandbox) {
+			validateConfig(config);
+			config = cleanServerConfig((0, vite.mergeConfig)(config, { server: {
+				host: "::",
+				port: 8080,
+				strictPort: true,
+				watch: { ignored: [...TOOL_MANAGED_WATCH_IGNORES] },
+				hmr: { overlay: false }
+			} }));
+		} else config = (0, vite.mergeConfig)({ server: {
+			host: "::",
+			port: 8080
+		} }, config);
+		if (isSandbox) return config;
+		return applyWatchDebounceDefaults(config);
+	};
+}
+//#endregion
+exports.defineConfig = defineConfig;
+exports.lovableAssetsProxyPlugin = lovableAssetsProxyPlugin;
+exports.stripRedundantNodejsCompatFlag = stripRedundantNodejsCompatFlag;
