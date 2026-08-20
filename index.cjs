@@ -1,91 +1,70 @@
-'use strict';
+"use strict";
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-var node_module = require('node:module');
-var fs = require('node:fs');
-var path = require('node:path');
+// src/index.ts
+var src_exports = {};
+__export(src_exports, {
+  SchemaError: () => SchemaError,
+  getDotPath: () => getDotPath
+});
+module.exports = __toCommonJS(src_exports);
 
-var _documentCurrentScript = typeof document !== 'undefined' ? document.currentScript : null;
-const cjsRequire = typeof require === "function" ? require : node_module.createRequire((typeof document === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : (_documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === 'SCRIPT' && _documentCurrentScript.src || new URL('index.cjs', document.baseURI).href)));
-const DEFAULT_EXTENSIONS = cjsRequire.extensions ? (
-  // eslint-disable-next-line sonarjs/deprecation
-  Object.keys(cjsRequire.extensions)
-) : (
-  // `require.extensions` could be `undefined` - #430
-  [".js", ".json", ".node"]
-);
-const EXTENSIONS = [".ts", ".tsx", ...DEFAULT_EXTENSIONS];
+// src/getDotPath/getDotPath.ts
+function getDotPath(issue) {
+  if (issue.path?.length) {
+    let dotPath = "";
+    for (const item of issue.path) {
+      const key = typeof item === "object" ? item.key : item;
+      if (typeof key === "string" || typeof key === "number") {
+        if (dotPath) {
+          dotPath += `.${key}`;
+        } else {
+          dotPath += key;
+        }
+      } else {
+        return null;
+      }
+    }
+    return dotPath;
+  }
+  return null;
+}
 
-const tryPkg = (pkg) => {
-  try {
-    return cjsRequire.resolve(pkg);
-  } catch {
+// src/SchemaError/SchemaError.ts
+var SchemaError = class extends Error {
+  /**
+   * The schema issues.
+   */
+  issues;
+  /**
+   * Creates a schema error with useful information.
+   *
+   * @param issues The schema issues.
+   */
+  constructor(issues) {
+    super(issues[0].message);
+    this.name = "SchemaError";
+    this.issues = issues;
   }
 };
-const isPkgAvailable = (pkg) => Boolean(tryPkg(pkg));
-const ANY_FILE_TYPES = /* @__PURE__ */ new Set(["any", true]);
-const isAnyFileType = (type) => ANY_FILE_TYPES.has(type);
-const tryFileStats = (filename, type = "file", base = process.cwd()) => {
-  if (!type) {
-    type = "file";
-  }
-  if (typeof filename === "string") {
-    const filepath = path.resolve(base, filename);
-    let stats;
-    try {
-      stats = fs.statSync(filepath, { throwIfNoEntry: false });
-    } catch {
-    }
-    return stats && (isAnyFileType(type) || (Array.isArray(type) ? type : [type]).some(
-      (type2) => stats[`is${type2[0].toUpperCase()}${type2.slice(1)}`]()
-    )) ? { filepath, stats } : void 0;
-  }
-  for (const file of filename ?? []) {
-    const result = tryFileStats(file, type, base);
-    if (result) {
-      return result;
-    }
-  }
-};
-const tryFile = (filename, type = "file", base) => tryFileStats(filename, type, base)?.filepath ?? "";
-const tryExtensions = (filepath, extensions = EXTENSIONS) => {
-  const ext = [...extensions, ""].find((ext2) => tryFile(filepath + ext2));
-  return ext == null ? "" : filepath + ext;
-};
-const findUp = (entryOrOptions, options) => {
-  if (typeof entryOrOptions === "string") {
-    options = {
-      entry: entryOrOptions,
-      ...options
-    };
-  } else if (entryOrOptions) {
-    options = options ? { ...entryOrOptions, ...options } : entryOrOptions;
-  }
-  let {
-    entry = process.cwd(),
-    search = "package.json",
-    type,
-    stop
-  } = options ?? {};
-  search = Array.isArray(search) ? search : [search];
-  do {
-    const searched = tryFile(search, type, entry);
-    if (searched) {
-      return searched;
-    }
-    const lastEntry = entry;
-    entry = path.dirname(entry);
-    if (entry === lastEntry) {
-      break;
-    }
-  } while (!stop || entry !== stop);
-  return "";
-};
-
-exports.EXTENSIONS = EXTENSIONS;
-exports.cjsRequire = cjsRequire;
-exports.findUp = findUp;
-exports.isPkgAvailable = isPkgAvailable;
-exports.tryExtensions = tryExtensions;
-exports.tryFile = tryFile;
-exports.tryFileStats = tryFileStats;
-exports.tryPkg = tryPkg;
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  SchemaError,
+  getDotPath
+});
