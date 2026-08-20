@@ -1,23 +1,27 @@
 import { render, screen } from '@testing-library/react';
 import user from '@testing-library/user-event';
-import vine from '@vinejs/vine';
-import { Infer } from '@vinejs/vine/build/src/types';
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { vineResolver } from '..';
+import { z } from 'zod/v3';
+import { zodResolver } from '..';
 
-const schema = vine.create({
-  username: vine.string().minLength(1),
-  password: vine.string().minLength(1),
+const USERNAME_REQUIRED_MESSAGE = 'username field is required';
+const PASSWORD_REQUIRED_MESSAGE = 'password field is required';
+
+const schema = z.object({
+  username: z.string().nonempty({ message: USERNAME_REQUIRED_MESSAGE }),
+  password: z.string().nonempty({ message: PASSWORD_REQUIRED_MESSAGE }),
 });
 
+type FormData = z.infer<typeof schema>;
+
 interface Props {
-  onSubmit: (data: Infer<typeof schema>) => void;
+  onSubmit: (data: FormData) => void;
 }
 
 function TestComponent({ onSubmit }: Props) {
-  const { register, handleSubmit } = useForm({
-    resolver: vineResolver(schema),
+  const { register, handleSubmit } = useForm<FormData>({
+    resolver: zodResolver(schema),
     shouldUseNativeValidation: true,
   });
 
@@ -55,16 +59,12 @@ test("form's native validation with Zod", async () => {
   // username
   usernameField = screen.getByPlaceholderText(/username/i) as HTMLInputElement;
   expect(usernameField.validity.valid).toBe(false);
-  expect(usernameField.validationMessage).toBe(
-    'The username field must have at least 1 characters',
-  );
+  expect(usernameField.validationMessage).toBe(USERNAME_REQUIRED_MESSAGE);
 
   // password
   passwordField = screen.getByPlaceholderText(/password/i) as HTMLInputElement;
   expect(passwordField.validity.valid).toBe(false);
-  expect(passwordField.validationMessage).toBe(
-    'The password field must have at least 1 characters',
-  );
+  expect(passwordField.validationMessage).toBe(PASSWORD_REQUIRED_MESSAGE);
 
   await user.type(screen.getByPlaceholderText(/username/i), 'joe');
   await user.type(screen.getByPlaceholderText(/password/i), 'password');

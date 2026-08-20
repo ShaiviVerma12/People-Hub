@@ -1,32 +1,38 @@
-import vine from '@vinejs/vine';
-import { InferInput } from '@vinejs/vine/build/src/types';
 import { Field, InternalFieldName } from 'react-hook-form';
+import * as yup from 'yup';
 
-export const schema = vine.create({
-  username: vine.string().regex(/^\w+$/).minLength(3).maxLength(30),
-  password: vine
+export const schema = yup.object({
+  username: yup.string().matches(/^\w+$/).min(3).max(30).required(),
+  password: yup
     .string()
-    .regex(new RegExp('.*[A-Z].*'))
-    .regex(new RegExp('.*[a-z].*'))
-    .regex(new RegExp('.*\\d.*'))
-    .regex(new RegExp('.*[`~<>?,./!@#$%^&*()\\-_+="\'|{}\\[\\];:\\\\].*'))
-    .minLength(8)
-    .confirmed({ as: 'repeatPassword' }),
-  repeatPassword: vine.string().sameAs('password'),
-  accessToken: vine.unionOfTypes([vine.string(), vine.number()]),
-  birthYear: vine.number().min(1900).max(2013),
-  email: vine.string().email().optional(),
-  tags: vine.array(vine.string()),
-  enabled: vine.boolean(),
-  like: vine.array(
-    vine.object({
-      id: vine.number(),
-      name: vine.string().fixedLength(4),
+    .matches(new RegExp('.*[A-Z].*'), 'One uppercase character')
+    .matches(new RegExp('.*[a-z].*'), 'One lowercase character')
+    .matches(new RegExp('.*\\d.*'), 'One number')
+    .matches(
+      new RegExp('.*[`~<>?,./!@#$%^&*()\\-_+="\'|{}\\[\\];:\\\\].*'),
+      'One special character',
+    )
+    .min(8, 'Must be at least 8 characters in length')
+    .required('New Password is required'),
+  repeatPassword: yup.ref('password'),
+  accessToken: yup.string(),
+  birthYear: yup.number().min(1900).max(2013),
+  email: yup.string().email(),
+  tags: yup.array(yup.string()),
+  enabled: yup.boolean(),
+  like: yup.array().of(
+    yup.object({
+      id: yup.number().required(),
+      name: yup.string().length(4).required(),
     }),
   ),
-  dateStr: vine
-    .string()
-    .transform((value: string) => new Date(value).toISOString()),
+});
+
+export const schemaWithWhen = yup.object({
+  name: yup.string().required(),
+  value: yup.string().when('name', ([name], schema) => {
+    return name === 'test' ? yup.number().required() : schema;
+  }),
 });
 
 export const validData = {
@@ -44,15 +50,15 @@ export const validData = {
       name: 'name',
     },
   ],
-  dateStr: '2020-01-01T00:00:00.000Z',
-} satisfies InferInput<typeof schema>;
+} satisfies yup.InferType<typeof schema>;
 
 export const invalidData = {
   password: '___',
   email: '',
   birthYear: 'birthYear',
   like: [{ id: 'z' }],
-} as unknown as InferInput<typeof schema>;
+  // Must be set to "unknown", otherwise typescript knows that it is invalid
+} as unknown as Required<yup.InferType<typeof schema>>;
 
 export const fields: Record<InternalFieldName, Field['_f']> = {
   username: {

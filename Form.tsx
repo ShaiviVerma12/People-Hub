@@ -1,25 +1,24 @@
 import { render, screen } from '@testing-library/react';
 import user from '@testing-library/user-event';
-import vine from '@vinejs/vine';
-import { Infer } from '@vinejs/vine/build/src/types';
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { vineResolver } from '..';
+import { z } from 'zod/v3';
+import { zodResolver } from '..';
 
-const schema = vine.create({
-  username: vine.string().minLength(1),
-  password: vine.string().minLength(1),
+const schema = z.object({
+  username: z.string().nonempty({ message: 'username field is required' }),
+  password: z.string().nonempty({ message: 'password field is required' }),
 });
 
 function TestComponent({
   onSubmit,
-}: { onSubmit: (data: Infer<typeof schema>) => void }) {
+}: { onSubmit: (data: z.infer<typeof schema>) => void }) {
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm({
-    resolver: vineResolver(schema), // Useful to check TypeScript regressions
+    resolver: zodResolver(schema), // Useful to check TypeScript regressions
   });
 
   return (
@@ -35,7 +34,7 @@ function TestComponent({
   );
 }
 
-test("form's validation with Vine and TypeScript's integration", async () => {
+test("form's validation with Zod and TypeScript's integration", async () => {
   const handleSubmit = vi.fn();
   render(<TestComponent onSubmit={handleSubmit} />);
 
@@ -43,11 +42,7 @@ test("form's validation with Vine and TypeScript's integration", async () => {
 
   await user.click(screen.getByText(/submit/i));
 
-  expect(
-    screen.getByText(/The username field must have at least 1 characters/i),
-  ).toBeInTheDocument();
-  expect(
-    screen.getByText(/The password field must have at least 1 characters/i),
-  ).toBeInTheDocument();
+  expect(screen.getByText(/username field is required/i)).toBeInTheDocument();
+  expect(screen.getByText(/password field is required/i)).toBeInTheDocument();
   expect(handleSubmit).not.toHaveBeenCalled();
 });
