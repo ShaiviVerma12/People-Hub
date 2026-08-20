@@ -1,30 +1,52 @@
-export { noop_alias_1 as noop } from './_tsup-dts-rollup.js';
-export { functionalUpdate } from './_tsup-dts-rollup.js';
-export { isValidTimeout } from './_tsup-dts-rollup.js';
-export { timeUntilStale } from './_tsup-dts-rollup.js';
-export { resolveStaleTime } from './_tsup-dts-rollup.js';
-export { resolveQueryBoolean } from './_tsup-dts-rollup.js';
-export { matchQuery_alias_1 as matchQuery } from './_tsup-dts-rollup.js';
-export { matchMutation_alias_1 as matchMutation } from './_tsup-dts-rollup.js';
-export { hashQueryKeyByOptions } from './_tsup-dts-rollup.js';
-export { hashKey_alias_1 as hashKey } from './_tsup-dts-rollup.js';
-export { partialMatchKey_alias_1 as partialMatchKey } from './_tsup-dts-rollup.js';
-export { replaceEqualDeep_alias_1 as replaceEqualDeep } from './_tsup-dts-rollup.js';
-export { shallowEqualObjects } from './_tsup-dts-rollup.js';
-export { isPlainArray } from './_tsup-dts-rollup.js';
-export { isPlainObject } from './_tsup-dts-rollup.js';
-export { sleep } from './_tsup-dts-rollup.js';
-export { replaceData } from './_tsup-dts-rollup.js';
-export { keepPreviousData_alias_1 as keepPreviousData } from './_tsup-dts-rollup.js';
-export { addToEnd } from './_tsup-dts-rollup.js';
-export { addToStart } from './_tsup-dts-rollup.js';
-export { ensureQueryFn } from './_tsup-dts-rollup.js';
-export { shouldThrowError_alias_1 as shouldThrowError } from './_tsup-dts-rollup.js';
-export { addConsumeAwareSignal } from './_tsup-dts-rollup.js';
-export { QueryFilters_alias_1 as QueryFilters } from './_tsup-dts-rollup.js';
-export { MutationFilters_alias_1 as MutationFilters } from './_tsup-dts-rollup.js';
-export { Updater_alias_1 as Updater } from './_tsup-dts-rollup.js';
-export { QueryTypeFilter } from './_tsup-dts-rollup.js';
-export { isServer_alias_1 as isServer } from './_tsup-dts-rollup.js';
-export { skipToken_alias_1 as skipToken } from './_tsup-dts-rollup.js';
-export { SkipToken_alias_1 as SkipToken } from './_tsup-dts-rollup.js';
+import * as React from 'react';
+/**
+ * React.use if available (React 19+), undefined otherwise.
+ * Use dynamic lookup to avoid Webpack compilation errors with React 18.
+ */
+export declare const reactUse: (<T>(usable: Promise<T> | React.Context<T>) => T) | undefined;
+export declare function useStableCallback<T extends (...args: Array<any>) => any>(fn: T): T;
+export declare const useLayoutEffect: typeof React.useEffect;
+/**
+ * Taken from https://www.developerway.com/posts/implementing-advanced-use-previous-hook#part3
+ */
+export declare function usePrevious<T>(value: T): T | null;
+/**
+ * React hook to wrap `IntersectionObserver`.
+ *
+ * This hook will create an `IntersectionObserver` and observe the ref passed to it.
+ *
+ * When the intersection changes, the callback will be called with the `IntersectionObserverEntry`.
+ *
+ * @param ref - The ref to observe
+ * @param intersectionObserverOptions - The options to pass to the IntersectionObserver
+ * @param disabled - Whether observation is disabled
+ * @param callback - The callback to call when the intersection changes
+ * @returns The IntersectionObserver instance
+ * @example
+ * ```tsx
+ * const MyComponent = () => {
+ * const ref = React.useRef<HTMLDivElement>(null)
+ * useIntersectionObserver(
+ *  ref,
+ *  (entry) => { doSomething(entry) },
+ *  { rootMargin: '10px' },
+ *  false
+ * )
+ * return <div ref={ref} />
+ * ```
+ */
+export declare function useIntersectionObserver<T extends Element>(ref: React.RefObject<T | null>, callback: (entry: IntersectionObserverEntry | undefined) => void, intersectionObserverOptions?: IntersectionObserverInit, disabled?: boolean): void;
+/**
+ * React hook to take a `React.ForwardedRef` and returns a `ref` that can be used on a DOM element.
+ *
+ * @param ref - The forwarded ref
+ * @returns The inner ref returned by `useRef`
+ * @example
+ * ```tsx
+ * const MyComponent = React.forwardRef((props, ref) => {
+ *  const innerRef = useForwardedRef(ref)
+ *  return <div ref={innerRef} />
+ * })
+ * ```
+ */
+export declare function useForwardedRef<T>(ref?: React.ForwardedRef<T>): React.RefObject<T | null>;
