@@ -1,25 +1,30 @@
-import type { object as nopeObject } from 'nope-validator';
-import type {
+import {
+  FieldName,
   FieldValues,
   ResolverOptions,
   ResolverResult,
 } from 'react-hook-form';
+import * as Vest from 'vest';
 
-// nope-validator doesn't publicly export the `NopeObject` class itself (and
-// its internal file layout has changed across major versions), so it's
-// derived here from the return type of its exported `object()` factory
-// instead of depending on an unstable, non-exported module path.
-type NopeObject = ReturnType<typeof nopeObject>;
+export type ICreateResult<
+  TValues extends FieldValues = FieldValues,
+  TContext = any,
+> = ReturnType<
+  typeof Vest.create<
+    any,
+    any,
+    (values: TValues, names?: FieldName<TValues>[], context?: TContext) => void
+  >
+>;
 
-type ValidateOptions = Parameters<NopeObject['validate']>[2];
-type Context = Parameters<NopeObject['validate']>[1];
-
-export type Resolver = <T extends NopeObject>(
-  schema: T,
-  schemaOptions?: ValidateOptions,
-  resolverOptions?: { mode?: 'async' | 'sync'; rawValues?: boolean },
-) => <TFieldValues extends FieldValues, TContext extends Context>(
-  values: TFieldValues,
+export type Resolver = <TValues extends FieldValues, TContext>(
+  schema: ICreateResult<TValues, TContext>,
+  schemaOptions?: never,
+  factoryOptions?: { mode?: 'async' | 'sync'; rawValues?: boolean },
+) => (
+  values: TValues,
   context: TContext | undefined,
-  options: ResolverOptions<TFieldValues>,
-) => ResolverResult<TFieldValues>;
+  options: ResolverOptions<TValues>,
+) => Promise<ResolverResult<TValues>>;
+
+export type VestErrors = Record<string, string[]>;

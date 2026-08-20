@@ -1,42 +1,32 @@
+import vine from '@vinejs/vine';
+import { InferInput } from '@vinejs/vine/build/src/types';
 import { Field, InternalFieldName } from 'react-hook-form';
-import * as t from 'typanion';
 
-export const schema = t.isObject({
-  username: t.cascade(t.isString(), [
-    t.matchesRegExp(/^\w+$/),
-    t.hasMinLength(2),
-    t.hasMaxLength(30),
-  ]),
-  password: t.cascade(t.isString(), [
-    t.matchesRegExp(new RegExp('.*[A-Z].*')), // one uppercase character
-    t.matchesRegExp(new RegExp('.*[a-z].*')), // one lowercase character
-    t.matchesRegExp(new RegExp('.*\\d.*')), // one number
-    t.matchesRegExp(
-      new RegExp('.*[`~<>?,./!@#$%^&*()\\-_+="\'|{}\\[\\];:\\\\].*'),
-    ), // one special character
-    t.hasMinLength(8), // Must be at least 8 characters in length
-  ]),
-  repeatPassword: t.cascade(t.isString(), [
-    t.matchesRegExp(new RegExp('.*[A-Z].*')), // one uppercase character
-    t.matchesRegExp(new RegExp('.*[a-z].*')), // one lowercase character
-    t.matchesRegExp(new RegExp('.*\\d.*')), // one number
-    t.matchesRegExp(
-      new RegExp('.*[`~<>?,./!@#$%^&*()\\-_+="\'|{}\\[\\];:\\\\].*'),
-    ), // one special character
-    t.hasMinLength(8), // Must be at least 8 characters in length
-  ]),
-  accessToken: t.isString(),
-  birthYear: t.cascade(t.isNumber(), [
-    t.isInteger(),
-    t.isInInclusiveRange(1900, 2013),
-  ]),
-  email: t.cascade(t.isString(), [t.matchesRegExp(/^\S+@\S+$/)]),
-  tags: t.isArray(t.isString()),
-  enabled: t.isBoolean(),
-  like: t.isObject({
-    id: t.cascade(t.isNumber(), [t.isInteger(), t.isPositive()]),
-    name: t.cascade(t.isString(), [t.hasMinLength(4)]),
-  }),
+export const schema = vine.create({
+  username: vine.string().regex(/^\w+$/).minLength(3).maxLength(30),
+  password: vine
+    .string()
+    .regex(new RegExp('.*[A-Z].*'))
+    .regex(new RegExp('.*[a-z].*'))
+    .regex(new RegExp('.*\\d.*'))
+    .regex(new RegExp('.*[`~<>?,./!@#$%^&*()\\-_+="\'|{}\\[\\];:\\\\].*'))
+    .minLength(8)
+    .confirmed({ as: 'repeatPassword' }),
+  repeatPassword: vine.string().sameAs('password'),
+  accessToken: vine.unionOfTypes([vine.string(), vine.number()]),
+  birthYear: vine.number().min(1900).max(2013),
+  email: vine.string().email().optional(),
+  tags: vine.array(vine.string()),
+  enabled: vine.boolean(),
+  like: vine.array(
+    vine.object({
+      id: vine.number(),
+      name: vine.string().fixedLength(4),
+    }),
+  ),
+  dateStr: vine
+    .string()
+    .transform((value: string) => new Date(value).toISOString()),
 });
 
 export const validData = {
@@ -48,19 +38,21 @@ export const validData = {
   tags: ['tag1', 'tag2'],
   enabled: true,
   accessToken: 'accessToken',
-  like: {
-    id: 1,
-    name: 'name',
-  },
-};
+  like: [
+    {
+      id: 1,
+      name: 'name',
+    },
+  ],
+  dateStr: '2020-01-01T00:00:00.000Z',
+} satisfies InferInput<typeof schema>;
 
 export const invalidData = {
   password: '___',
   email: '',
   birthYear: 'birthYear',
-  like: { id: 'z' },
-  tags: [1, 2, 3],
-} as any as t.InferType<typeof schema>;
+  like: [{ id: 'z' }],
+} as unknown as InferInput<typeof schema>;
 
 export const fields: Record<InternalFieldName, Field['_f']> = {
   username: {

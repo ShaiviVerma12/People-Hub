@@ -1,23 +1,28 @@
 import { render, screen } from '@testing-library/react';
 import user from '@testing-library/user-event';
-import vine from '@vinejs/vine';
-import { Infer } from '@vinejs/vine/build/src/types';
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { vineResolver } from '..';
+import { typeboxResolver } from '..';
 
-const schema = vine.create({
-  username: vine.string().minLength(1),
-  password: vine.string().minLength(1),
+import { Static, Type } from '@sinclair/typebox';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
+
+const schema = Type.Object({
+  username: Type.String({ minLength: 1 }),
+  password: Type.String({ minLength: 1 }),
 });
 
+const typecheck = TypeCompiler.Compile(schema);
+
+type FormData = Static<typeof schema>;
+
 interface Props {
-  onSubmit: (data: Infer<typeof schema>) => void;
+  onSubmit: (data: FormData) => void;
 }
 
 function TestComponent({ onSubmit }: Props) {
   const { register, handleSubmit } = useForm({
-    resolver: vineResolver(schema),
+    resolver: typeboxResolver(typecheck),
     shouldUseNativeValidation: true,
   });
 
@@ -32,7 +37,7 @@ function TestComponent({ onSubmit }: Props) {
   );
 }
 
-test("form's native validation with Zod", async () => {
+test("form's native validation with Typebox (with compiler)", async () => {
   const handleSubmit = vi.fn();
   render(<TestComponent onSubmit={handleSubmit} />);
 
@@ -56,14 +61,14 @@ test("form's native validation with Zod", async () => {
   usernameField = screen.getByPlaceholderText(/username/i) as HTMLInputElement;
   expect(usernameField.validity.valid).toBe(false);
   expect(usernameField.validationMessage).toBe(
-    'The username field must have at least 1 characters',
+    'Expected string length greater or equal to 1',
   );
 
   // password
   passwordField = screen.getByPlaceholderText(/password/i) as HTMLInputElement;
   expect(passwordField.validity.valid).toBe(false);
   expect(passwordField.validationMessage).toBe(
-    'The password field must have at least 1 characters',
+    'Expected string length greater or equal to 1',
   );
 
   await user.type(screen.getByPlaceholderText(/username/i), 'joe');

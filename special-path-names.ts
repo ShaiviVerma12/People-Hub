@@ -1,21 +1,20 @@
-import * as Joi from 'joi';
-import { joiResolver } from '..';
+import vine from '@vinejs/vine';
+import { vineResolver } from '..';
 
 const shouldUseNativeValidation = false;
 
-describe('joiResolver special path names', () => {
+describe('vineResolver special path names', () => {
   it.each(['hasOwnProperty', 'toString'])(
     'reports a validation error for a field named "%s"',
     async (name) => {
-      const schema = Joi.object({ [name]: Joi.string().min(1).required() });
+      const schema = vine.compile(
+        vine.object({ [name]: vine.string().minLength(1) } as any),
+      );
 
-      const result = await joiResolver(schema)(
+      const result = await vineResolver(schema as any)(
         { [name]: '' } as any,
         undefined,
-        {
-          fields: {},
-          shouldUseNativeValidation,
-        } as any,
+        { fields: {}, shouldUseNativeValidation } as any,
       );
 
       expect(result.errors[name]).toBeDefined();
