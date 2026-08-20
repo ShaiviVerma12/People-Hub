@@ -1,24 +1,23 @@
 import { render, screen } from '@testing-library/react';
 import user from '@testing-library/user-event';
-import * as t from 'io-ts';
-import * as tt from 'io-ts-types';
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { ioTsResolver } from '..';
+import * as t from 'typanion';
+import { typanionResolver } from '..';
 
-const USERNAME_REQUIRED_MESSAGE = 'username field is required';
-const PASSWORD_REQUIRED_MESSAGE = 'password field is required';
+const ERROR_MESSAGE =
+  'Expected to have a length of at least 1 elements (got 0)';
 
-const schema = t.type({
-  username: tt.withMessage(tt.NonEmptyString, () => USERNAME_REQUIRED_MESSAGE),
-  password: tt.withMessage(tt.NonEmptyString, () => PASSWORD_REQUIRED_MESSAGE),
+const schema = t.isObject({
+  username: t.cascade(t.isString(), [t.hasMinLength(1)]),
+  password: t.cascade(t.isString(), [t.hasMinLength(1)]),
 });
 
 function TestComponent({
   onSubmit,
-}: { onSubmit: (data: t.OutputOf<typeof schema>) => void }) {
+}: { onSubmit: (data: t.InferType<typeof schema>) => void }) {
   const { register, handleSubmit } = useForm({
-    resolver: ioTsResolver(schema),
+    resolver: typanionResolver(schema),
     shouldUseNativeValidation: true,
   });
 
@@ -33,7 +32,7 @@ function TestComponent({
   );
 }
 
-test("form's native validation with io-ts", async () => {
+test("form's native validation with Typanion", async () => {
   const handleSubmit = vi.fn();
   render(<TestComponent onSubmit={handleSubmit} />);
 
@@ -56,12 +55,12 @@ test("form's native validation with io-ts", async () => {
   // username
   usernameField = screen.getByPlaceholderText(/username/i) as HTMLInputElement;
   expect(usernameField.validity.valid).toBe(false);
-  expect(usernameField.validationMessage).toBe(USERNAME_REQUIRED_MESSAGE);
+  expect(usernameField.validationMessage).toBe(ERROR_MESSAGE);
 
   // password
   passwordField = screen.getByPlaceholderText(/password/i) as HTMLInputElement;
   expect(passwordField.validity.valid).toBe(false);
-  expect(passwordField.validationMessage).toBe(PASSWORD_REQUIRED_MESSAGE);
+  expect(passwordField.validationMessage).toBe(ERROR_MESSAGE);
 
   await user.type(screen.getByPlaceholderText(/username/i), 'joe');
   await user.type(screen.getByPlaceholderText(/password/i), 'password');

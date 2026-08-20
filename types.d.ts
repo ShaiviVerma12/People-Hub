@@ -1,6 +1,10 @@
-import type { ValidationError, ValidatorOptions } from 'ata-validator';
-import { FieldValues, ResolverOptions, ResolverResult } from 'react-hook-form';
-export type Resolver = (schema: object, schemaOptions?: ValidatorOptions, resolverOptions?: {
-    raw?: boolean;
-}) => <TFieldValues extends FieldValues, TContext>(values: TFieldValues, context: TContext | undefined, options: ResolverOptions<TFieldValues>) => Promise<ResolverResult<TFieldValues>>;
-export type AtaValidationError = ValidationError;
+import type { object as nopeObject } from 'nope-validator';
+import type { FieldValues, ResolverOptions, ResolverResult } from 'react-hook-form';
+type NopeObject = ReturnType<typeof nopeObject>;
+type ValidateOptions = Parameters<NopeObject['validate']>[2];
+type Context = Parameters<NopeObject['validate']>[1];
+export type Resolver = <T extends NopeObject>(schema: T, schemaOptions?: ValidateOptions, resolverOptions?: {
+    mode?: 'async' | 'sync';
+    rawValues?: boolean;
+}) => <TFieldValues extends FieldValues, TContext extends Context>(values: TFieldValues, context: TContext | undefined, options: ResolverOptions<TFieldValues>) => ResolverResult<TFieldValues>;
+export {};
