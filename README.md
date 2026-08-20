@@ -1,90 +1,76 @@
-# hijri-converter
+<p align="center">
+  <a href="https://tailwindcss.com" target="_blank">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/tailwindlabs/tailwindcss/HEAD/.github/logo-dark.svg">
+      <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/tailwindlabs/tailwindcss/HEAD/.github/logo-light.svg">
+      <img alt="Tailwind CSS" src="https://raw.githubusercontent.com/tailwindlabs/tailwindcss/HEAD/.github/logo-light.svg" width="350" height="70" style="max-width: 100%;">
+    </picture>
+  </a>
+</p>
 
-A Javascript package to convert accurately between Hijri and Gregorian dates using the Umm al-Qura calendar.
+<p align="center">
+  A utility-first CSS framework for rapidly building custom user interfaces.
+</p>
 
-This project uses a Typescript interpretation of a date conversion algorithm written in Python by Mohammed H Alshehri - [hijri-converter](https://github.com/mhalshehri/hijri-converter).
+<p align="center">
+    <a href="https://github.com/tailwindlabs/tailwindcss/actions"><img src="https://img.shields.io/github/actions/workflow/status/tailwindlabs/tailwindcss/ci.yml?branch=main" alt="Build Status"></a>
+    <a href="https://www.npmjs.com/package/tailwindcss"><img src="https://img.shields.io/npm/dt/tailwindcss.svg" alt="Total Downloads"></a>
+    <a href="https://github.com/tailwindlabs/tailwindcss/releases"><img src="https://img.shields.io/npm/v/tailwindcss.svg" alt="Latest Release"></a>
+    <a href="https://github.com/tailwindlabs/tailwindcss/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/tailwindcss.svg" alt="License"></a>
+</p>
 
-Therefore, it has the same accuracy and limitations.
+---
 
-## Limitations
+## Documentation
 
-- The date range supported by converter is limited to the period from the beginning of 1343 AH (1 August 1924 CE) to the end of 1500 AH (16 November 2077 CE).
-- The conversion is not intended for religious purposes where sighting of the lunar crescent at the beginning of Hijri month is still preferred.
+For full documentation, visit [tailwindcss.com](https://tailwindcss.com).
 
-## Comparison
+## Community
 
-| Item                      | hijri-converter    | moment-hijri                     |
-|:--------------------------|:-------------------|:---------------------------------|
-| Conversion range          | 1343-1500 AH       | 1356-1500 AH                     |
-| Accuracy                  | 100%               | 91,8%                            |
-| Input validation          | Yes                | No                               |
-| Typescript support        | Typescript first   | Types declarations               |
-| Functionality             | Only convert dates | Parse, manipulate, display, etc. |
-| Dependencies              | Zero-dependency    | moment                           |
-| Size (minified + gzipped) | 11.4 kB            | 74.4 kB                          |
+For help, discussion about best practices, or feature ideas:
 
-## Installation
+[Discuss Tailwind CSS on GitHub](https://github.com/tailwindlabs/tailwindcss/discussions)
 
-```bash
-npm install @tabby.ai/hijri-converter
+## Contributing
+
+If you're interested in contributing to Tailwind CSS, please read our [contributing docs](https://github.com/tailwindlabs/tailwindcss/blob/main/.github/CONTRIBUTING.md) **before submitting a pull request**.
+
+---
+
+## `@tailwindcss/vite` plugin API
+
+### Enabling or disabling Lightning CSS
+
+By default, this plugin detects whether or not the CSS is being built for production by checking the `NODE_ENV` environment variable. When building for production Lightning CSS will be enabled otherwise it is disabled.
+
+If you want to always enable or disable Lightning CSS the `optimize` option may be used:
+
+```js
+import tailwindcss from '@tailwindcss/vite'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  plugins: [
+    tailwindcss({
+      // Disable Lightning CSS optimization
+      optimize: false,
+    }),
+  ],
+})
 ```
 
-## Basic usage
+It's also possible to keep Lightning CSS enabled but disable minification:
 
-```javascript
-// CommonJS modules
-const { gregorianToHijri } = require('@tabby.ai/hijri-converter');
+```js
+import tailwindcss from '@tailwindcss/vite'
+import { defineConfig } from 'vite'
 
-const date = new Date();
-const hijriDate = gregorianToHijri({
-  year: date.getFullYear(),
-  month: date.getMonth() + 1, // Month number in Javascript Date API is zero-based.
-  day: date.getDay(),
-});
-
-console.log(hijriDate); // { year: 1444, month: 7, day: 15 }
-
-// or ESModules
-import { hijriToGregorian } from '@tabby.ai/hijri-converter';
-
-const gregorianDate = hijriToGregorian({ year: 1444, month: 7, day: 15 });
-
-console.log(gregorianDate); // { year: 2023, month: 2, day: 6 }
+export default defineConfig({
+  plugins: [
+    tailwindcss({
+      // Enable Lightning CSS but disable minification
+      optimize: { minify: false },
+    }),
+  ],
+})
 ```
-
-## What about date formatting?
-
-This library only converts dates. But you might not need any specific date libraries if you want to format dates. Browsers and Node.js widely support date formatting: [Date.prototype.toLocaleDateString](https://caniuse.com/?search=Date.prototype.toLocaleDateString), [Intl.DateTimeFormat](https://caniuse.com/?search=DateTimeFormat)
-
-```javascript
-const date = new Date(Date.UTC(2012, 11, 20, 3, 0, 0));
-
-const options = {
-  timeZone: 'UTC',
-  weekday: 'short',
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-};
-
-// using Date.prototype.toLocaleDateString method
-console.log(date.toLocaleDateString('ar-SA-u-ca-islamic-umalqura', options)); // -> "الخميس، ٧ صفر ١٤٣٤ هـ"
-console.log(date.toLocaleDateString('en-SA-u-ca-islamic-umalqura', options)); // -> "Thu, Safar 7, 1434 AH"
-
-// or using Intl.DateTimeFormat API
-const arSaFormatter = new Intl.DateTimeFormat(
-  'ar-SA-u-ca-islamic-umalqura',
-  options
-);
-const enSaFormatter = new Intl.DateTimeFormat(
-  'en-SA-u-ca-islamic-umalqura',
-  options
-);
-
-console.log(arSaFormatter.format(date)); // -> 'الخميس، ٧ صفر ١٤٣٤ هـ'
-console.log(enSaFormatter.format(date)); // -> "Thu, Safar 7, 1434 AH"
-```
-
-## License
-
-This project is licensed under the terms of the MIT license.
