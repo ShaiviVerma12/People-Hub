@@ -1,33 +1,30 @@
-import { IncomingMessage, ServerResponse } from 'node:http';
-import { PackageJson } from '@tanstack/devtools-client';
-type DevToolsRequestHandler = (data: any) => void;
-type NextFunction = (err?: unknown) => void;
-type DevToolsViteRequestOptions = {
-    onOpenSource?: DevToolsRequestHandler;
-    onConsolePipe?: (entries: Array<any>) => void;
-    onServerConsolePipe?: (entries: Array<any>) => void;
-    onConsolePipeSSE?: (res: ServerResponse<IncomingMessage>, req: IncomingMessage) => void;
-};
-export declare const handleDevToolsRequest: (req: IncomingMessage & {
-    url?: string;
-}, res: ServerResponse<IncomingMessage>, next: NextFunction, cbOrOptions: DevToolsRequestHandler | DevToolsViteRequestOptions) => void;
-export declare const parseOpenSourceParam: (source: string) => {
-    file: string | undefined;
-    line: string | undefined;
-    column: string | undefined;
-} | null;
-export declare const tryParseJson: <T extends any>(jsonString: string | null | undefined) => T | null;
-export declare const readPackageJson: () => Promise<PackageJson | null>;
-/**
- * Extracts and formats the source location from enhanced client console logs.
- * Instead of stripping the prefix entirely, we extract the file:line:column
- * from the "Go to Source" URL and use that as a prefix.
- *
- * Enhanced logs format (two variants):
- * 1. ['%cLOG%c %cGo to Source: http://...?source=%2Fsrc%2F...%c \n → ', 'color:...', 'color:...', 'color:...', 'color:...', 'message']
- * 2. ['\x1b[...]%s\x1b[...]', '%cLOG%c %cGo to Source: ...%c \n → ', 'color:...', 'color:...', 'color:...', 'color:...', 'message']
- *
- * Output: ['src/components/Header.tsx:26:13', 'message']
- */
-export declare const stripEnhancedLogPrefix: (args: Array<unknown>, formatSourceLocation?: (location: string) => unknown) => Array<unknown>;
-export {};
+export { noop_alias_1 as noop } from './_tsup-dts-rollup.js';
+export { functionalUpdate } from './_tsup-dts-rollup.js';
+export { isValidTimeout } from './_tsup-dts-rollup.js';
+export { timeUntilStale } from './_tsup-dts-rollup.js';
+export { resolveStaleTime } from './_tsup-dts-rollup.js';
+export { resolveQueryBoolean } from './_tsup-dts-rollup.js';
+export { matchQuery_alias_1 as matchQuery } from './_tsup-dts-rollup.js';
+export { matchMutation_alias_1 as matchMutation } from './_tsup-dts-rollup.js';
+export { hashQueryKeyByOptions } from './_tsup-dts-rollup.js';
+export { hashKey_alias_1 as hashKey } from './_tsup-dts-rollup.js';
+export { partialMatchKey_alias_1 as partialMatchKey } from './_tsup-dts-rollup.js';
+export { replaceEqualDeep_alias_1 as replaceEqualDeep } from './_tsup-dts-rollup.js';
+export { shallowEqualObjects } from './_tsup-dts-rollup.js';
+export { isPlainArray } from './_tsup-dts-rollup.js';
+export { isPlainObject } from './_tsup-dts-rollup.js';
+export { sleep } from './_tsup-dts-rollup.js';
+export { replaceData } from './_tsup-dts-rollup.js';
+export { keepPreviousData_alias_1 as keepPreviousData } from './_tsup-dts-rollup.js';
+export { addToEnd } from './_tsup-dts-rollup.js';
+export { addToStart } from './_tsup-dts-rollup.js';
+export { ensureQueryFn } from './_tsup-dts-rollup.js';
+export { shouldThrowError_alias_1 as shouldThrowError } from './_tsup-dts-rollup.js';
+export { addConsumeAwareSignal } from './_tsup-dts-rollup.js';
+export { QueryFilters_alias_1 as QueryFilters } from './_tsup-dts-rollup.js';
+export { MutationFilters_alias_1 as MutationFilters } from './_tsup-dts-rollup.js';
+export { Updater_alias_1 as Updater } from './_tsup-dts-rollup.js';
+export { QueryTypeFilter } from './_tsup-dts-rollup.js';
+export { isServer_alias_1 as isServer } from './_tsup-dts-rollup.js';
+export { skipToken_alias_1 as skipToken } from './_tsup-dts-rollup.js';
+export { SkipToken_alias_1 as SkipToken } from './_tsup-dts-rollup.js';
