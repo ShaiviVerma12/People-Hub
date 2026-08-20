@@ -1,42 +1,72 @@
 {
-  "name": "@oozcitak/url",
-  "version": "3.0.0",
-  "keywords": [
-    "url",
-    "whatwg"
-  ],
-  "homepage": "http://github.com/oozcitak/url",
-  "description": "An implementation of the URL Living Standard",
-  "author": "Ozgur Ozcitak <oozcitak@gmail.com>",
-  "contributors": [],
+  "name": "@radix-ui/react-alert-dialog",
+  "version": "1.1.23",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/oozcitak/url.git"
-  },
-  "bugs": {
-    "url": "http://github.com/oozcitak/url/issues"
-  },
-  "main": "./lib/index",
-  "types": "lib/index.d.ts",
-  "engines": {
-    "node": ">=20.0"
-  },
+  "source": "./src/index.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
   "files": [
-    "lib/**/*"
+    "src",
+    "dist"
   ],
+  "sideEffects": false,
   "dependencies": {
-    "@oozcitak/util": "^10.0.0",
-    "@oozcitak/infra": "^2.0.2"
+    "@radix-ui/primitive": "1.1.7",
+    "@radix-ui/react-compose-refs": "1.1.5",
+    "@radix-ui/react-context": "1.2.2",
+    "@radix-ui/react-dialog": "1.1.23",
+    "@radix-ui/react-primitive": "2.1.10"
   },
   "devDependencies": {
-    "@types/node": "^24.7.0",
-    "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "typescript": "^5.9.3",
+    "@repo/builder": "0.0.0",
+    "@repo/typescript-config": "0.0.0"
+  },
+  "peerDependencies": {
+    "@types/react": "*",
+    "@types/react-dom": "*",
+    "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc",
+    "react-dom": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    },
+    "@types/react-dom": {
+      "optional": true
+    }
+  },
+  "homepage": "https://radix-ui.com/primitives",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/radix-ui/primitives.git",
+    "directory": "packages/react/alert-dialog"
+  },
+  "bugs": {
+    "url": "https://github.com/radix-ui/primitives/issues"
   },
   "scripts": {
-    "test": "tsc && tsx --test --experimental-test-coverage test/**/*test.ts",
-    "cover": "tsc && tsx --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=./coverage/lcov.info test/*test.ts",
-    "publish-public": "tsc && npm run cover && npm publish --access public"
+    "lint": "oxlint --max-warnings 0 src",
+    "clean": "rm -rf dist",
+    "reset": "rm -rf dist node_modules",
+    "typecheck": "tsc --noEmit",
+    "build": "radix-build"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
   }
 }
