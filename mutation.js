@@ -1,27 +1,18 @@
-import {
-  __privateAdd,
-  __privateGet,
-  __privateMethod,
-  __privateSet
-} from "./chunk-PXG64RU4.js";
-
 // src/mutation.ts
 import { notifyManager } from "./notifyManager.js";
 import { Removable } from "./removable.js";
 import { createRetryer } from "./retryer.js";
-var _client, _observers, _mutationCache, _retryer, _Mutation_instances, dispatch_fn;
 var Mutation = class extends Removable {
+  #client;
+  #observers;
+  #mutationCache;
+  #retryer;
   constructor(config) {
     super();
-    __privateAdd(this, _Mutation_instances);
-    __privateAdd(this, _client);
-    __privateAdd(this, _observers);
-    __privateAdd(this, _mutationCache);
-    __privateAdd(this, _retryer);
-    __privateSet(this, _client, config.client);
+    this.#client = config.client;
     this.mutationId = config.mutationId;
-    __privateSet(this, _mutationCache, config.mutationCache);
-    __privateSet(this, _observers, []);
+    this.#mutationCache = config.mutationCache;
+    this.#observers = [];
     this.state = config.state || getDefaultState();
     this.setOptions(config.options);
     this.scheduleGc();
@@ -34,10 +25,10 @@ var Mutation = class extends Removable {
     return this.options.meta;
   }
   addObserver(observer) {
-    if (!__privateGet(this, _observers).includes(observer)) {
-      __privateGet(this, _observers).push(observer);
+    if (!this.#observers.includes(observer)) {
+      this.#observers.push(observer);
       this.clearGcTimeout();
-      __privateGet(this, _mutationCache).notify({
+      this.#mutationCache.notify({
         type: "observerAdded",
         mutation: this,
         observer
@@ -45,39 +36,37 @@ var Mutation = class extends Removable {
     }
   }
   removeObserver(observer) {
-    __privateSet(this, _observers, __privateGet(this, _observers).filter((x) => x !== observer));
+    this.#observers = this.#observers.filter((x) => x !== observer);
     this.scheduleGc();
-    __privateGet(this, _mutationCache).notify({
+    this.#mutationCache.notify({
       type: "observerRemoved",
       mutation: this,
       observer
     });
   }
   optionalRemove() {
-    if (!__privateGet(this, _observers).length) {
+    if (!this.#observers.length) {
       if (this.state.status === "pending") {
         this.scheduleGc();
       } else {
-        __privateGet(this, _mutationCache).remove(this);
+        this.#mutationCache.remove(this);
       }
     }
   }
   continue() {
-    var _a;
-    return ((_a = __privateGet(this, _retryer)) == null ? void 0 : _a.continue()) ?? // continuing a mutation assumes that variables are set, mutation must have been dehydrated before
+    return this.#retryer?.continue() ?? // continuing a mutation assumes that variables are set, mutation must have been dehydrated before
     this.execute(this.state.variables);
   }
   async execute(variables) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r;
     const onContinue = () => {
-      __privateMethod(this, _Mutation_instances, dispatch_fn).call(this, { type: "continue" });
+      this.#dispatch({ type: "continue" });
     };
     const mutationFnContext = {
-      client: __privateGet(this, _client),
+      client: this.#client,
       meta: this.options.meta,
       mutationKey: this.options.mutationKey
     };
-    __privateSet(this, _retryer, createRetryer({
+    this.#retryer = createRetryer({
       fn: () => {
         if (!this.options.mutationFn) {
           return Promise.reject(new Error("No mutationFn found"));
@@ -85,38 +74,37 @@ var Mutation = class extends Removable {
         return this.options.mutationFn(variables, mutationFnContext);
       },
       onFail: (failureCount, error) => {
-        __privateMethod(this, _Mutation_instances, dispatch_fn).call(this, { type: "failed", failureCount, error });
+        this.#dispatch({ type: "failed", failureCount, error });
       },
       onPause: () => {
-        __privateMethod(this, _Mutation_instances, dispatch_fn).call(this, { type: "pause" });
+        this.#dispatch({ type: "pause" });
       },
       onContinue,
       retry: this.options.retry ?? 0,
       retryDelay: this.options.retryDelay,
       networkMode: this.options.networkMode,
-      canRun: () => __privateGet(this, _mutationCache).canRun(this)
-    }));
+      canRun: () => this.#mutationCache.canRun(this)
+    });
     const restored = this.state.status === "pending";
-    const isPaused = !__privateGet(this, _retryer).canStart();
+    const isPaused = !this.#retryer.canStart();
     try {
       if (restored) {
         onContinue();
       } else {
-        __privateMethod(this, _Mutation_instances, dispatch_fn).call(this, { type: "pending", variables, isPaused });
-        if (__privateGet(this, _mutationCache).config.onMutate) {
-          await __privateGet(this, _mutationCache).config.onMutate(
+        this.#dispatch({ type: "pending", variables, isPaused });
+        if (this.#mutationCache.config.onMutate) {
+          await this.#mutationCache.config.onMutate(
             variables,
             this,
             mutationFnContext
           );
         }
-        const context = await ((_b = (_a = this.options).onMutate) == null ? void 0 : _b.call(
-          _a,
+        const context = await this.options.onMutate?.(
           variables,
           mutationFnContext
-        ));
+        );
         if (context !== this.state.context) {
-          __privateMethod(this, _Mutation_instances, dispatch_fn).call(this, {
+          this.#dispatch({
             type: "pending",
             context,
             variables,
@@ -124,167 +112,154 @@ var Mutation = class extends Removable {
           });
         }
       }
-      const data = await __privateGet(this, _retryer).start();
-      await ((_d = (_c = __privateGet(this, _mutationCache).config).onSuccess) == null ? void 0 : _d.call(
-        _c,
+      const data = await this.#retryer.start();
+      await this.#mutationCache.config.onSuccess?.(
         data,
         variables,
         this.state.context,
         this,
         mutationFnContext
-      ));
-      await ((_f = (_e = this.options).onSuccess) == null ? void 0 : _f.call(
-        _e,
+      );
+      await this.options.onSuccess?.(
         data,
         variables,
         this.state.context,
         mutationFnContext
-      ));
-      await ((_h = (_g = __privateGet(this, _mutationCache).config).onSettled) == null ? void 0 : _h.call(
-        _g,
+      );
+      await this.#mutationCache.config.onSettled?.(
         data,
         null,
         this.state.variables,
         this.state.context,
         this,
         mutationFnContext
-      ));
-      await ((_j = (_i = this.options).onSettled) == null ? void 0 : _j.call(
-        _i,
+      );
+      await this.options.onSettled?.(
         data,
         null,
         variables,
         this.state.context,
         mutationFnContext
-      ));
-      __privateMethod(this, _Mutation_instances, dispatch_fn).call(this, { type: "success", data });
+      );
+      this.#dispatch({ type: "success", data });
       return data;
     } catch (error) {
       try {
-        await ((_l = (_k = __privateGet(this, _mutationCache).config).onError) == null ? void 0 : _l.call(
-          _k,
+        await this.#mutationCache.config.onError?.(
           error,
           variables,
           this.state.context,
           this,
           mutationFnContext
-        ));
+        );
       } catch (e) {
         void Promise.reject(e);
       }
       try {
-        await ((_n = (_m = this.options).onError) == null ? void 0 : _n.call(
-          _m,
+        await this.options.onError?.(
           error,
           variables,
           this.state.context,
           mutationFnContext
-        ));
+        );
       } catch (e) {
         void Promise.reject(e);
       }
       try {
-        await ((_p = (_o = __privateGet(this, _mutationCache).config).onSettled) == null ? void 0 : _p.call(
-          _o,
+        await this.#mutationCache.config.onSettled?.(
           void 0,
           error,
           this.state.variables,
           this.state.context,
           this,
           mutationFnContext
-        ));
+        );
       } catch (e) {
         void Promise.reject(e);
       }
       try {
-        await ((_r = (_q = this.options).onSettled) == null ? void 0 : _r.call(
-          _q,
+        await this.options.onSettled?.(
           void 0,
           error,
           variables,
           this.state.context,
           mutationFnContext
-        ));
+        );
       } catch (e) {
         void Promise.reject(e);
       }
-      __privateMethod(this, _Mutation_instances, dispatch_fn).call(this, { type: "error", error });
+      this.#dispatch({ type: "error", error });
       throw error;
     } finally {
-      __privateGet(this, _mutationCache).runNext(this);
+      this.#mutationCache.runNext(this);
     }
   }
-};
-_client = new WeakMap();
-_observers = new WeakMap();
-_mutationCache = new WeakMap();
-_retryer = new WeakMap();
-_Mutation_instances = new WeakSet();
-dispatch_fn = function(action) {
-  const reducer = (state) => {
-    switch (action.type) {
-      case "failed":
-        return {
-          ...state,
-          failureCount: action.failureCount,
-          failureReason: action.error
-        };
-      case "pause":
-        return {
-          ...state,
-          isPaused: true
-        };
-      case "continue":
-        return {
-          ...state,
-          isPaused: false
-        };
-      case "pending":
-        return {
-          ...state,
-          context: action.context,
-          data: void 0,
-          failureCount: 0,
-          failureReason: null,
-          error: null,
-          isPaused: action.isPaused,
-          status: "pending",
-          variables: action.variables,
-          submittedAt: Date.now()
-        };
-      case "success":
-        return {
-          ...state,
-          data: action.data,
-          failureCount: 0,
-          failureReason: null,
-          error: null,
-          status: "success",
-          isPaused: false
-        };
-      case "error":
-        return {
-          ...state,
-          data: void 0,
-          error: action.error,
-          failureCount: state.failureCount + 1,
-          failureReason: action.error,
-          isPaused: false,
-          status: "error"
-        };
-    }
-  };
-  this.state = reducer(this.state);
-  notifyManager.batch(() => {
-    __privateGet(this, _observers).forEach((observer) => {
-      observer.onMutationUpdate(action);
+  #dispatch(action) {
+    const reducer = (state) => {
+      switch (action.type) {
+        case "failed":
+          return {
+            ...state,
+            failureCount: action.failureCount,
+            failureReason: action.error
+          };
+        case "pause":
+          return {
+            ...state,
+            isPaused: true
+          };
+        case "continue":
+          return {
+            ...state,
+            isPaused: false
+          };
+        case "pending":
+          return {
+            ...state,
+            context: action.context,
+            data: void 0,
+            failureCount: 0,
+            failureReason: null,
+            error: null,
+            isPaused: action.isPaused,
+            status: "pending",
+            variables: action.variables,
+            submittedAt: Date.now()
+          };
+        case "success":
+          return {
+            ...state,
+            data: action.data,
+            failureCount: 0,
+            failureReason: null,
+            error: null,
+            status: "success",
+            isPaused: false
+          };
+        case "error":
+          return {
+            ...state,
+            data: void 0,
+            error: action.error,
+            failureCount: state.failureCount + 1,
+            failureReason: action.error,
+            isPaused: false,
+            status: "error"
+          };
+      }
+    };
+    this.state = reducer(this.state);
+    notifyManager.batch(() => {
+      this.#observers.forEach((observer) => {
+        observer.onMutationUpdate(action);
+      });
+      this.#mutationCache.notify({
+        mutation: this,
+        type: "updated",
+        action
+      });
     });
-    __privateGet(this, _mutationCache).notify({
-      mutation: this,
-      type: "updated",
-      action
-    });
-  });
+  }
 };
 function getDefaultState() {
   return {
