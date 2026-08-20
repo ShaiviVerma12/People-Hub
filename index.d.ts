@@ -1,51 +1,62 @@
-import * as _radix_ui_react_context from '@radix-ui/react-context';
 import * as React from 'react';
-import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { Primitive } from '@radix-ui/react-primitive';
 
-declare const createAlertDialogScope: _radix_ui_react_context.CreateScope;
-type DialogProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Root>;
-interface AlertDialogProps extends Omit<DialogProps, 'modal'> {
+type PrimitiveDivProps = React.ComponentPropsWithoutRef<typeof Primitive.div>;
+interface DismissableLayerProps extends PrimitiveDivProps {
+    /**
+     * When `true`, hover/focus/click interactions will be disabled on elements outside
+     * the `DismissableLayer`. Users will need to click twice on outside elements to
+     * interact with them: once to close the `DismissableLayer`, and again to trigger the element.
+     */
+    disableOutsidePointerEvents?: boolean;
+    /**
+     * When `true`, a `'pointerdown'` event outside of the layered element will
+     * wait for the interaction's click event before dispatching, allowing
+     * third-party code to stop propagation of later events and cancel dismissal.
+     */
+    deferPointerDownOutside?: boolean;
+    /**
+     * Event handler called when the escape key is down.
+     * Can be prevented.
+     */
+    onEscapeKeyDown?: (event: KeyboardEvent) => void;
+    /**
+     * Event handler called when the a `pointerdown` event happens outside of the `DismissableLayer`.
+     * Can be prevented.
+     */
+    onPointerDownOutside?: (event: PointerDownOutsideEvent) => void;
+    /**
+     * Event handler called when the focus moves outside of the `DismissableLayer`.
+     * Can be prevented.
+     */
+    onFocusOutside?: (event: FocusOutsideEvent) => void;
+    /**
+     * Event handler called when an interaction happens outside the `DismissableLayer`.
+     * Specifically, when a `pointerdown` event happens outside or focus moves outside of it.
+     * Can be prevented.
+     */
+    onInteractOutside?: (event: PointerDownOutsideEvent | FocusOutsideEvent) => void;
+    /**
+     * Handler called when the `DismissableLayer` should be dismissed
+     */
+    onDismiss?: () => void;
 }
-declare const AlertDialog: React.FC<AlertDialogProps>;
-type DialogTriggerProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Trigger>;
-interface AlertDialogTriggerProps extends DialogTriggerProps {
+declare const DismissableLayer: React.ForwardRefExoticComponent<DismissableLayerProps & React.RefAttributes<HTMLDivElement>>;
+type DismissableLayerBranchElement = React.ComponentRef<typeof Primitive.div>;
+interface DismissableLayerBranchProps extends PrimitiveDivProps {
 }
-declare const AlertDialogTrigger: React.ForwardRefExoticComponent<AlertDialogTriggerProps & React.RefAttributes<HTMLButtonElement>>;
-type DialogPortalProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Portal>;
-interface AlertDialogPortalProps extends DialogPortalProps {
-}
-declare const AlertDialogPortal: React.FC<AlertDialogPortalProps>;
-type DialogOverlayProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>;
-interface AlertDialogOverlayProps extends DialogOverlayProps {
-}
-declare const AlertDialogOverlay: React.ForwardRefExoticComponent<AlertDialogOverlayProps & React.RefAttributes<HTMLDivElement>>;
-type DialogContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>;
-interface AlertDialogContentProps extends Omit<DialogContentProps, 'onPointerDownOutside' | 'onInteractOutside'> {
-}
-declare const AlertDialogContent: React.ForwardRefExoticComponent<AlertDialogContentProps & React.RefAttributes<HTMLDivElement>>;
-type DialogTitleProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>;
-interface AlertDialogTitleProps extends DialogTitleProps {
-}
-declare const AlertDialogTitle: React.ForwardRefExoticComponent<AlertDialogTitleProps & React.RefAttributes<HTMLHeadingElement>>;
-type DialogDescriptionProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>;
-interface AlertDialogDescriptionProps extends DialogDescriptionProps {
-}
-declare const AlertDialogDescription: React.ForwardRefExoticComponent<AlertDialogDescriptionProps & React.RefAttributes<HTMLParagraphElement>>;
-type DialogCloseProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Close>;
-interface AlertDialogActionProps extends DialogCloseProps {
-}
-declare const AlertDialogAction: React.ForwardRefExoticComponent<AlertDialogActionProps & React.RefAttributes<HTMLButtonElement>>;
-interface AlertDialogCancelProps extends DialogCloseProps {
-}
-declare const AlertDialogCancel: React.ForwardRefExoticComponent<AlertDialogCancelProps & React.RefAttributes<HTMLButtonElement>>;
-declare const Root: React.FC<AlertDialogProps>;
-declare const Trigger: React.ForwardRefExoticComponent<AlertDialogTriggerProps & React.RefAttributes<HTMLButtonElement>>;
-declare const Portal: React.FC<AlertDialogPortalProps>;
-declare const Overlay: React.ForwardRefExoticComponent<AlertDialogOverlayProps & React.RefAttributes<HTMLDivElement>>;
-declare const Content: React.ForwardRefExoticComponent<AlertDialogContentProps & React.RefAttributes<HTMLDivElement>>;
-declare const Action: React.ForwardRefExoticComponent<AlertDialogActionProps & React.RefAttributes<HTMLButtonElement>>;
-declare const Cancel: React.ForwardRefExoticComponent<AlertDialogCancelProps & React.RefAttributes<HTMLButtonElement>>;
-declare const Title: React.ForwardRefExoticComponent<AlertDialogTitleProps & React.RefAttributes<HTMLHeadingElement>>;
-declare const Description: React.ForwardRefExoticComponent<AlertDialogDescriptionProps & React.RefAttributes<HTMLParagraphElement>>;
+declare const DismissableLayerBranch: React.ForwardRefExoticComponent<DismissableLayerBranchProps & React.RefAttributes<HTMLDivElement>>;
+/**
+ * Registers a node as a "dismiss surface" for the enclosing DismissableLayer
+ */
+declare function useDismissableLayerSurface(): React.RefCallback<DismissableLayerBranchElement>;
+type PointerDownOutsideEvent = CustomEvent<{
+    originalEvent: PointerEvent;
+}>;
+type FocusOutsideEvent = CustomEvent<{
+    originalEvent: FocusEvent;
+}>;
+declare const Root: React.ForwardRefExoticComponent<DismissableLayerProps & React.RefAttributes<HTMLDivElement>>;
+declare const Branch: React.ForwardRefExoticComponent<DismissableLayerBranchProps & React.RefAttributes<HTMLDivElement>>;
 
-export { Action, AlertDialog, AlertDialogAction, type AlertDialogActionProps, AlertDialogCancel, type AlertDialogCancelProps, AlertDialogContent, type AlertDialogContentProps, AlertDialogDescription, type AlertDialogDescriptionProps, AlertDialogOverlay, type AlertDialogOverlayProps, AlertDialogPortal, type AlertDialogPortalProps, type AlertDialogProps, AlertDialogTitle, type AlertDialogTitleProps, AlertDialogTrigger, type AlertDialogTriggerProps, Cancel, Content, Description, Overlay, Portal, Root, Title, Trigger, createAlertDialogScope };
+export { Branch, DismissableLayer, DismissableLayerBranch, type DismissableLayerProps, Root, useDismissableLayerSurface };
