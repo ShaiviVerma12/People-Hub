@@ -1,198 +1,342 @@
+import { devtoolsEventClient } from "@tanstack/devtools-client";
+import { ServerEventBus } from "@tanstack/devtools-event-bus/server";
+import chalk from "chalk";
+import { DEFAULT_EDITOR_CONFIG, TANSTACK_DEVTOOLS_PACKAGES, addPluginToDevtools, addSourceToJsx, detectDevtoolsFile, emitOutdatedDeps, enhanceConsoleLog, generateConsolePipeCode, handleDevToolsRequest, handleOpenSource, injectPluginIntoFile, injectRuntimeBridge, installPackage, normalizePath, readPackageJson, removeDevtools, stripEnhancedLogPrefix, wireRuntimeBridgeChannels } from "@tanstack/devtools-bundler-core";
 //#region src/plugin.ts
-var EventClient = class {
-	#enabled = true;
-	#pluginId;
-	#eventTarget;
-	#debug;
-	#queuedEvents;
-	#connected;
-	#connectIntervalId;
-	#connectEveryMs;
-	#retryCount = 0;
-	#maxRetries = 5;
-	#connecting = false;
-	#failedToConnect = false;
-	#internalEventTarget = null;
-	#onConnected = () => {
-		this.debugLog("Connected to event bus");
-		this.#connected = true;
-		this.#connecting = false;
-		this.debugLog("Emitting queued events", this.#queuedEvents);
-		this.#queuedEvents.forEach((event) => this.emitEventToBus(event));
-		this.#queuedEvents = [];
-		this.stopConnectLoop();
-		this.#eventTarget().removeEventListener("tanstack-connect-success", this.#onConnected);
-	};
-	#retryConnection = () => {
-		if (this.#retryCount < this.#maxRetries) {
-			this.#retryCount++;
-			this.dispatchCustomEvent("tanstack-connect", {});
-			return;
-		}
-		this.#eventTarget().removeEventListener("tanstack-connect", this.#retryConnection);
-		this.#failedToConnect = true;
-		this.debugLog("Max retries reached, giving up on connection");
-		this.stopConnectLoop();
-	};
-	#connectFunction = () => {
-		if (this.#connecting) return;
-		this.#connecting = true;
-		this.#eventTarget().addEventListener("tanstack-connect-success", this.#onConnected);
-		this.#retryConnection();
-	};
-	constructor({ pluginId, debug = false, enabled = true, reconnectEveryMs = 300 }) {
-		this.#pluginId = pluginId;
-		this.#enabled = enabled;
-		this.#eventTarget = this.getGlobalTarget;
-		this.#debug = debug;
-		this.debugLog(" Initializing event subscription for plugin", this.#pluginId);
-		this.#queuedEvents = [];
-		this.#connected = false;
-		this.#failedToConnect = false;
-		this.#connectIntervalId = null;
-		this.#connectEveryMs = reconnectEveryMs;
-	}
-	startConnectLoop() {
-		if (this.#connectIntervalId !== null || this.#connected) return;
-		this.debugLog(`Starting connect loop (every ${this.#connectEveryMs}ms)`);
-		this.#connectIntervalId = setInterval(this.#retryConnection, this.#connectEveryMs);
-	}
-	stopConnectLoop() {
-		this.#connecting = false;
-		if (this.#connectIntervalId === null) return;
-		clearInterval(this.#connectIntervalId);
-		this.#connectIntervalId = null;
-		this.#queuedEvents = [];
-		this.debugLog("Stopped connect loop");
-	}
-	debugLog(...args) {
-		if (this.#debug) console.log(`🌴 [tanstack-devtools:${this.#pluginId}-plugin]`, ...args);
-	}
-	getGlobalTarget() {
-		if (typeof globalThis !== "undefined" && globalThis.__TANSTACK_EVENT_TARGET__) {
-			this.debugLog("Using global event target");
-			return globalThis.__TANSTACK_EVENT_TARGET__;
-		}
-		if (typeof window !== "undefined" && typeof window.addEventListener !== "undefined") {
-			this.debugLog("Using window as event target");
-			return window;
-		}
-		const eventTarget = typeof EventTarget !== "undefined" ? new EventTarget() : void 0;
-		if (typeof eventTarget === "undefined" || typeof eventTarget.addEventListener === "undefined") {
-			this.debugLog("No event mechanism available, running in non-web environment");
-			return {
-				addEventListener: () => {},
-				removeEventListener: () => {},
-				dispatchEvent: () => false
-			};
-		}
-		this.debugLog("Using new EventTarget as fallback");
-		return eventTarget;
-	}
-	getPluginId() {
-		return this.#pluginId;
-	}
-	dispatchCustomEventShim(eventName, detail) {
-		try {
-			const event = new Event(eventName, { detail });
-			this.#eventTarget().dispatchEvent(event);
-		} catch (e) {
-			this.debugLog("Failed to dispatch shim event");
-		}
-	}
-	dispatchCustomEvent(eventName, detail) {
-		try {
-			this.#eventTarget().dispatchEvent(new CustomEvent(eventName, { detail }));
-		} catch (e) {
-			this.dispatchCustomEventShim(eventName, detail);
-		}
-	}
-	emitEventToBus(event) {
-		this.debugLog("Emitting event to client bus", event);
-		this.dispatchCustomEvent("tanstack-dispatch-event", event);
-	}
-	createEventPayload(eventSuffix, payload) {
-		return {
-			type: `${this.#pluginId}:${eventSuffix}`,
-			payload,
-			pluginId: this.#pluginId
-		};
-	}
-	emit(eventSuffix, payload) {
-		if (!this.#enabled) {
-			this.debugLog("Event bus client is disabled, not emitting event", eventSuffix, payload);
-			return;
-		}
-		if (this.#internalEventTarget) {
-			this.debugLog("Emitting event to internal event target", eventSuffix, payload);
-			this.#internalEventTarget.dispatchEvent(new CustomEvent(`${this.#pluginId}:${eventSuffix}`, { detail: this.createEventPayload(eventSuffix, payload) }));
-		}
-		if (this.#failedToConnect) {
-			this.debugLog("Previously failed to connect, not emitting to bus");
-			return;
-		}
-		if (!this.#connected) {
-			this.debugLog("Bus not available, will be pushed as soon as connected");
-			this.#queuedEvents.push(this.createEventPayload(eventSuffix, payload));
-			if (typeof CustomEvent !== "undefined" && !this.#connecting) {
-				this.#connectFunction();
-				this.startConnectLoop();
+var defineDevtoolsConfig = (config) => config;
+var devtools = (args) => {
+	let port = 5173;
+	const logging = args?.logging ?? true;
+	const enhancedLogsConfig = args?.enhancedLogs ?? { enabled: true };
+	const injectSourceConfig = args?.injectSource ?? { enabled: true };
+	const removeDevtoolsOnBuild = args?.removeDevtoolsOnBuild ?? true;
+	const serverBusEnabled = args?.eventBusConfig?.enabled ?? true;
+	const consolePipingConfig = args?.consolePiping ?? { enabled: true };
+	const consolePipingLevels = consolePipingConfig.levels ?? [
+		"log",
+		"warn",
+		"error",
+		"info",
+		"debug"
+	];
+	let devtoolsFileId = null;
+	let devtoolsPort = null;
+	let devtoolsHost = null;
+	let devtoolsProtocol = null;
+	return [
+		{
+			enforce: "pre",
+			name: "@tanstack/devtools:inject-source",
+			apply(config) {
+				return config.mode === "development" && injectSourceConfig.enabled;
+			},
+			transform: {
+				filter: { id: { exclude: [
+					/node_modules/,
+					/\?raw/,
+					/\/dist\//,
+					/\/build\//
+				] } },
+				handler(code, id) {
+					return addSourceToJsx(code, id, args?.injectSource?.ignore);
+				}
 			}
-			return;
+		},
+		{
+			name: "@tanstack/devtools:config",
+			enforce: "pre",
+			config(_, { command }) {
+				if (command !== "serve") return;
+			}
+		},
+		{
+			enforce: "pre",
+			name: "@tanstack/devtools:custom-server",
+			apply(config) {
+				return config.mode === "development";
+			},
+			async configureServer(server) {
+				if (serverBusEnabled) {
+					const preferredPort = args?.eventBusConfig?.port ?? 4206;
+					const isHttps = !!server.config.server.https;
+					const serverHost = typeof server.config.server.host === "string" ? server.config.server.host : "localhost";
+					devtoolsProtocol = isHttps ? "https" : "http";
+					devtoolsHost = serverHost;
+					devtoolsPort = await new ServerEventBus({
+						...args?.eventBusConfig,
+						port: preferredPort,
+						host: serverHost,
+						...isHttps && server.httpServer ? { httpServer: server.httpServer } : {}
+					}).start();
+					if (server.environments) {
+						const teardownBridge = wireRuntimeBridgeChannels(server, () => globalThis.__TANSTACK_EVENT_TARGET__);
+						server.httpServer?.on("close", teardownBridge);
+					}
+				}
+				server.middlewares.use((req, _res, next) => {
+					if (req.socket.localPort && req.socket.localPort !== port) port = req.socket.localPort;
+					next();
+				});
+				if (server.config.server.port) port = server.config.server.port;
+				server.httpServer?.on("listening", () => {
+					port = server.config.server.port;
+				});
+				const editor = args?.editor ?? DEFAULT_EDITOR_CONFIG;
+				const openInEditor = async (path, lineNum, columnNum) => {
+					if (!path) return;
+					await editor.open(path, lineNum, columnNum);
+				};
+				const originalConsole = Object.fromEntries(consolePipingLevels.map((l) => [l, console[l].bind(console)]));
+				const sseClients = [];
+				let sseClientId = 0;
+				const consolePipingEnabled = consolePipingConfig.enabled ?? true;
+				server.middlewares.use((req, res, next) => handleDevToolsRequest(req, res, next, {
+					onOpenSource: (parsedData) => {
+						const { data, routine } = parsedData;
+						if (routine === "open-source") return handleOpenSource({
+							data: {
+								type: data.type,
+								data
+							},
+							openInEditor
+						});
+					},
+					...consolePipingEnabled ? {
+						onConsolePipe: (entries) => {
+							for (const entry of entries) {
+								const prefix = chalk.cyan("[Client]");
+								(originalConsole[entry.level] ?? originalConsole.log)(prefix, ...stripEnhancedLogPrefix(entry.args, (loc) => chalk.gray(loc)));
+							}
+						},
+						onConsolePipeSSE: (res, req) => {
+							res.setHeader("Content-Type", "text/event-stream");
+							res.setHeader("Cache-Control", "no-cache");
+							res.setHeader("Connection", "keep-alive");
+							res.setHeader("Access-Control-Allow-Origin", "*");
+							res.flushHeaders();
+							const clientId = ++sseClientId;
+							sseClients.push({
+								res,
+								id: clientId
+							});
+							req.on("close", () => {
+								const index = sseClients.findIndex((c) => c.id === clientId);
+								if (index !== -1) sseClients.splice(index, 1);
+							});
+						},
+						onServerConsolePipe: (entries) => {
+							try {
+								const data = JSON.stringify({ entries: entries.map((e) => ({
+									level: e.level,
+									args: e.args,
+									source: "server",
+									timestamp: e.timestamp || Date.now()
+								})) });
+								for (const client of sseClients) client.res.write(`data: ${data}\n\n`);
+							} catch {}
+						}
+					} : {}
+				}));
+			}
+		},
+		{
+			name: "@tanstack/devtools:remove-devtools-on-build",
+			apply(config, { command }) {
+				return (command !== "serve" || config.mode === "production") && removeDevtoolsOnBuild;
+			},
+			enforce: "pre",
+			transform(code, id) {
+				if (id.includes("node_modules") || id.includes("?raw") || !TANSTACK_DEVTOOLS_PACKAGES.some((pkg) => code.includes(pkg))) return;
+				const transform = removeDevtools(code, id);
+				if (!transform) return;
+				if (logging) console.log(`\n${chalk.greenBright(`[@tanstack/devtools-vite]`)} Removed devtools code from: ${id.replace(normalizePath(process.cwd()), "")}\n`);
+				return transform;
+			}
+		},
+		{
+			name: "@tanstack/devtools:event-client-setup",
+			apply(config, { command }) {
+				if (process.env.CI || process.env.NODE_ENV !== "development" || command !== "serve") return false;
+				return config.mode === "development";
+			},
+			async configureServer() {
+				const packageJson = await readPackageJson();
+				const outdatedDeps = emitOutdatedDeps().then((deps) => deps);
+				devtoolsEventClient.on("install-devtools", async (event) => {
+					const result = await installPackage(event.payload.packageName);
+					devtoolsEventClient.emit("devtools-installed", {
+						packageName: event.payload.packageName,
+						success: result.success,
+						error: result.error
+					});
+					if (result.success) {
+						const { packageName, pluginName, pluginImport } = event.payload;
+						console.log(chalk.blueBright(`[@tanstack/devtools-vite] Auto-adding ${packageName} to devtools...`));
+						if (addPluginToDevtools(devtoolsFileId, packageName, pluginName, pluginImport).success) {
+							devtoolsEventClient.emit("plugin-added", {
+								packageName,
+								success: true
+							});
+							const updatedPackageJson = await readPackageJson();
+							devtoolsEventClient.emit("package-json-read", { packageJson: updatedPackageJson });
+						}
+					}
+				});
+				devtoolsEventClient.on("add-plugin-to-devtools", (event) => {
+					const { packageName, pluginName, pluginImport } = event.payload;
+					console.log(chalk.blueBright(`[@tanstack/devtools-vite] Adding ${packageName} to devtools...`));
+					const result = addPluginToDevtools(devtoolsFileId, packageName, pluginName, pluginImport);
+					devtoolsEventClient.emit("plugin-added", {
+						packageName,
+						success: result.success,
+						error: result.error
+					});
+				});
+				devtoolsEventClient.on("bump-package-version", async (event) => {
+					const { packageName, devtoolsPackage, pluginName, minVersion, pluginImport } = event.payload;
+					console.log(chalk.blueBright(`[@tanstack/devtools-vite] Bumping ${packageName} to version ${minVersion}...`));
+					const result = await installPackage(minVersion ? `${packageName}@^${minVersion}` : packageName);
+					if (!result.success) {
+						console.log(chalk.redBright(`[@tanstack/devtools-vite] Failed to bump ${packageName}: ${result.error}`));
+						devtoolsEventClient.emit("devtools-installed", {
+							packageName: devtoolsPackage,
+							success: false,
+							error: result.error
+						});
+						return;
+					}
+					console.log(chalk.greenBright(`[@tanstack/devtools-vite] Successfully bumped ${packageName} to ${minVersion}!`));
+					if (!devtoolsFileId) {
+						console.log(chalk.yellowBright(`[@tanstack/devtools-vite] Devtools file not found. Skipping auto-injection.`));
+						devtoolsEventClient.emit("devtools-installed", {
+							packageName: devtoolsPackage,
+							success: true
+						});
+						return;
+					}
+					console.log(chalk.blueBright(`[@tanstack/devtools-vite] Adding ${devtoolsPackage} to devtools...`));
+					const injectResult = injectPluginIntoFile(devtoolsFileId, {
+						packageName: devtoolsPackage,
+						pluginName,
+						pluginImport
+					});
+					if (injectResult.success) {
+						console.log(chalk.greenBright(`[@tanstack/devtools-vite] Successfully added ${devtoolsPackage} to devtools!`));
+						devtoolsEventClient.emit("plugin-added", {
+							packageName: devtoolsPackage,
+							success: true
+						});
+						const updatedPackageJson = await readPackageJson();
+						devtoolsEventClient.emit("package-json-read", { packageJson: updatedPackageJson });
+					} else {
+						console.log(chalk.redBright(`[@tanstack/devtools-vite] Failed to add ${devtoolsPackage} to devtools: ${injectResult.error}`));
+						devtoolsEventClient.emit("plugin-added", {
+							packageName: devtoolsPackage,
+							success: false,
+							error: injectResult.error
+						});
+					}
+				});
+				devtoolsEventClient.on("mounted", async () => {
+					devtoolsEventClient.emit("outdated-deps-read", { outdatedDeps: await outdatedDeps });
+					devtoolsEventClient.emit("package-json-read", { packageJson });
+				});
+			},
+			async handleHotUpdate({ file }) {
+				if (file.endsWith("package.json")) {
+					const newPackageJson = await readPackageJson();
+					devtoolsEventClient.emit("package-json-read", { packageJson: newPackageJson });
+					emitOutdatedDeps();
+				}
+			}
+		},
+		{
+			name: "@tanstack/devtools:better-console-logs",
+			enforce: "pre",
+			apply(config) {
+				return config.mode === "development" && enhancedLogsConfig.enabled;
+			},
+			transform: {
+				filter: {
+					id: { exclude: [
+						/node_modules/,
+						/\?raw/,
+						/\/dist\//,
+						/\/build\//
+					] },
+					code: { include: "console." }
+				},
+				handler(code, id) {
+					return enhanceConsoleLog(code, id, port);
+				}
+			}
+		},
+		{
+			name: "@tanstack/devtools:console-pipe-transform",
+			enforce: "pre",
+			apply(config, { command }) {
+				return config.mode === "development" && command === "serve" && (consolePipingConfig.enabled ?? true);
+			},
+			transform: {
+				filter: {
+					id: {
+						include: /\.(tsx?|jsx?)$/,
+						exclude: [
+							/node_modules/,
+							/\/dist\//,
+							/\?/
+						]
+					},
+					code: { exclude: /__tsdConsolePipe/ }
+				},
+				handler(code) {
+					if (/<html[\s>]/i.test(code) || code.includes("StartClient") || code.includes("hydrateRoot") || code.includes("createRoot") || code.includes("solid-js/web") && code.includes("render(")) return `${generateConsolePipeCode(consolePipingLevels, `http://localhost:${port}`)}\n${code}`;
+				}
+			}
+		},
+		{
+			name: "@tanstack/devtools:inject-plugin",
+			apply(config, { command }) {
+				return config.mode === "development" && command === "serve";
+			},
+			transform(code, id) {
+				if (!devtoolsFileId && detectDevtoolsFile(code)) {
+					const [filePath] = id.split("?");
+					if (filePath) devtoolsFileId = filePath;
+				}
+			}
+		},
+		{
+			name: "@tanstack/devtools:connection-injection",
+			apply(config, { command }) {
+				return config.mode === "development" && command === "serve";
+			},
+			transform(code, id) {
+				if (!(code.includes("__TANSTACK_DEVTOOLS_PORT__") || code.includes("__TANSTACK_DEVTOOLS_HOST__") || code.includes("__TANSTACK_DEVTOOLS_PROTOCOL__"))) return;
+				if (!id.includes("@tanstack/devtools") && !id.includes("@tanstack/event-bus")) return;
+				const portValue = devtoolsPort ?? 4206;
+				const hostValue = devtoolsHost ?? "localhost";
+				const protocolValue = devtoolsProtocol ?? "http";
+				let result = code;
+				result = result.replace(/__TANSTACK_DEVTOOLS_PORT__/g, String(portValue));
+				result = result.replace(/__TANSTACK_DEVTOOLS_HOST__/g, JSON.stringify(hostValue));
+				result = result.replace(/__TANSTACK_DEVTOOLS_PROTOCOL__/g, JSON.stringify(protocolValue));
+				return result;
+			}
+		},
+		{
+			name: "@tanstack/devtools:runtime-bridge",
+			apply(config, { command }) {
+				return config.mode === "development" && command === "serve";
+			},
+			transform(code, id) {
+				if (id.includes("?")) return;
+				return injectRuntimeBridge(code, id, this.environment?.name);
+			}
 		}
-		return this.emitEventToBus(this.createEventPayload(eventSuffix, payload));
-	}
-	on(eventSuffix, cb, options) {
-		const withEventTarget = options?.withEventTarget ?? false;
-		const eventName = `${this.#pluginId}:${eventSuffix}`;
-		if (withEventTarget) {
-			if (!this.#internalEventTarget) this.#internalEventTarget = new EventTarget();
-			this.#internalEventTarget.addEventListener(eventName, (e) => {
-				cb(e.detail);
-			});
-		}
-		if (!this.#enabled) {
-			this.debugLog("Event bus client is disabled, not registering event", eventName);
-			return () => {};
-		}
-		const handler = (e) => {
-			this.debugLog("Received event from bus", e.detail);
-			cb(e.detail);
-		};
-		this.#eventTarget().addEventListener(eventName, handler);
-		this.debugLog("Registered event to bus", eventName);
-		return () => {
-			if (withEventTarget) this.#internalEventTarget?.removeEventListener(eventName, handler);
-			this.#eventTarget().removeEventListener(eventName, handler);
-		};
-	}
-	onAll(cb) {
-		if (!this.#enabled) {
-			this.debugLog("Event bus client is disabled, not registering event");
-			return () => {};
-		}
-		const handler = (e) => {
-			const event = e.detail;
-			cb(event);
-		};
-		this.#eventTarget().addEventListener("tanstack-devtools-global", handler);
-		return () => this.#eventTarget().removeEventListener("tanstack-devtools-global", handler);
-	}
-	onAllPluginEvents(cb) {
-		if (!this.#enabled) {
-			this.debugLog("Event bus client is disabled, not registering event");
-			return () => {};
-		}
-		const handler = (e) => {
-			const event = e.detail;
-			if (this.#pluginId && event.pluginId !== this.#pluginId) return;
-			cb(event);
-		};
-		this.#eventTarget().addEventListener("tanstack-devtools-global", handler);
-		return () => this.#eventTarget().removeEventListener("tanstack-devtools-global", handler);
-	}
+	];
 };
 //#endregion
-export { EventClient };
+export { defineDevtoolsConfig, devtools };
 
 //# sourceMappingURL=plugin.js.map

@@ -1,33 +1,20 @@
-# @tanstack/devtools-event-bus
+# @tanstack/devtools-vite
 
 This package is still under active development and might have breaking changes in the future. Please use it with caution.
 
 ## General Usage
 
-### Server Event Bus
-
-```tsx
-import { ServerEventBus } from '@tanstack/devtools-event-bus/server'
-// Start the server event bus
-const devtoolsServer = new ServerEventBus()
-
-devtoolsServer.start()
-
-export { devtoolsServer }
-```
-
-### Client Event Bus
+The `@tanstack/devtools-vite` package is designed to work with Vite projects.
+Plug it into your plugins array:
 
 ```ts
-import { ClientEventBus } from '@tanstack/devtools-event-bus/client'
-// Start the client event bus
-const devtoolsClient = new ClientEventBus()
+import { devtools } from '@tanstack/devtools-vite'
 
-devtoolsClient.start()
-
-export { devtoolsClient }
+export default {
+  plugins: [
+    // Important to include it first!
+    devtools(),
+    ... //rest of the plugins
+  ],
+}
 ```
-
-## Plugins
-
-Check out @tanstack/devtools-event-client for more information on how to create plugins for the event bus.
