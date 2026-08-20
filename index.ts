@@ -1,1 +1,1 @@
-export * from './class-validator';
+export * from './io-ts';

@@ -1,25 +1,24 @@
 import { render, screen } from '@testing-library/react';
 import user from '@testing-library/user-event';
-import { IsNotEmpty } from 'class-validator';
+import * as t from 'io-ts';
+import * as tt from 'io-ts-types';
 import React from 'react';
-import { SubmitHandler, useForm } from 'react-hook-form';
-import { classValidatorResolver } from '..';
+import { useForm } from 'react-hook-form';
+import { ioTsResolver } from '..';
 
-class Schema {
-  @IsNotEmpty()
-  username: string;
+const USERNAME_REQUIRED_MESSAGE = 'username field is required';
+const PASSWORD_REQUIRED_MESSAGE = 'password field is required';
 
-  @IsNotEmpty()
-  password: string;
-}
+const schema = t.type({
+  username: tt.withMessage(tt.NonEmptyString, () => USERNAME_REQUIRED_MESSAGE),
+  password: tt.withMessage(tt.NonEmptyString, () => PASSWORD_REQUIRED_MESSAGE),
+});
 
-interface Props {
-  onSubmit: SubmitHandler<Schema>;
-}
-
-function TestComponent({ onSubmit }: Props) {
-  const { register, handleSubmit } = useForm<Schema>({
-    resolver: classValidatorResolver(Schema),
+function TestComponent({
+  onSubmit,
+}: { onSubmit: (data: t.OutputOf<typeof schema>) => void }) {
+  const { register, handleSubmit } = useForm({
+    resolver: ioTsResolver(schema),
     shouldUseNativeValidation: true,
   });
 
@@ -34,7 +33,7 @@ function TestComponent({ onSubmit }: Props) {
   );
 }
 
-test("form's native validation with Class Validator", async () => {
+test("form's native validation with io-ts", async () => {
   const handleSubmit = vi.fn();
   render(<TestComponent onSubmit={handleSubmit} />);
 
@@ -57,12 +56,12 @@ test("form's native validation with Class Validator", async () => {
   // username
   usernameField = screen.getByPlaceholderText(/username/i) as HTMLInputElement;
   expect(usernameField.validity.valid).toBe(false);
-  expect(usernameField.validationMessage).toBe('username should not be empty');
+  expect(usernameField.validationMessage).toBe(USERNAME_REQUIRED_MESSAGE);
 
   // password
   passwordField = screen.getByPlaceholderText(/password/i) as HTMLInputElement;
   expect(passwordField.validity.valid).toBe(false);
-  expect(passwordField.validationMessage).toBe('password should not be empty');
+  expect(passwordField.validationMessage).toBe(PASSWORD_REQUIRED_MESSAGE);
 
   await user.type(screen.getByPlaceholderText(/username/i), 'joe');
   await user.type(screen.getByPlaceholderText(/password/i), 'password');

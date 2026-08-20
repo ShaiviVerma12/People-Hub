@@ -1,72 +1,96 @@
-import 'reflect-metadata';
-import { Type } from 'class-transformer';
-import {
-  IsEmail,
-  IsNotEmpty,
-  Length,
-  Matches,
-  Max,
-  Min,
-  ValidateNested,
-} from 'class-validator';
+import * as t from 'io-ts';
+import * as tt from 'io-ts-types';
+
 import { Field, InternalFieldName } from 'react-hook-form';
 
-class Like {
-  @IsNotEmpty()
-  id: number;
+export const schema = t.intersection([
+  t.type({
+    username: tt.NonEmptyString,
+    password: tt.NonEmptyString,
+    accessToken: tt.UUID,
+    birthYear: t.number,
+    email: t.string,
+    tags: t.array(
+      t.type({
+        name: t.string,
+      }),
+    ),
+    luckyNumbers: t.array(t.number),
+    enabled: t.boolean,
+    animal: t.union([
+      t.string,
+      t.number,
+      t.literal('bird'),
+      t.literal('snake'),
+    ]),
+    vehicles: t.array(
+      t.union([
+        t.type({
+          type: t.literal('car'),
+          brand: t.string,
+          horsepower: t.number,
+        }),
+        t.type({
+          type: t.literal('bike'),
+          speed: t.number,
+        }),
+      ]),
+    ),
+  }),
+  t.partial({
+    like: t.array(
+      t.type({
+        id: tt.withMessage(
+          t.number,
+          (i) => `this id is very important but you passed: ${typeof i}(${i})`,
+        ),
+        name: t.string,
+      }),
+    ),
+  }),
+]);
 
-  @Length(4)
-  name: string;
-}
-
-export class Schema {
-  @Matches(/^\w+$/)
-  @Length(3, 30)
-  username: string;
-
-  @Matches(/^[a-zA-Z0-9]{3,30}/)
-  password: string;
-
-  @Min(1900)
-  @Max(2013)
-  birthYear: number;
-
-  @IsEmail()
-  email: string;
-
-  accessToken: string;
-
-  tags: string[];
-
-  enabled: boolean;
-
-  @ValidateNested({ each: true })
-  @Type(() => Like)
-  like: Like[];
-}
-
-export const validData: Schema = {
+export const validData = {
   username: 'Doe',
   password: 'Password123',
+  accessToken: 'c2883927-5178-4ad1-bbee-07ba33a5de19',
   birthYear: 2000,
   email: 'john@doe.com',
-  tags: ['tag1', 'tag2'],
+  tags: [{ name: 'test' }],
   enabled: true,
-  accessToken: 'accessToken',
+  luckyNumbers: [17, 5],
+  animal: 'cat',
   like: [
     {
       id: 1,
       name: 'name',
     },
   ],
-};
+  vehicles: [{ type: 'car', brand: 'BMW', horsepower: 150 }],
+} satisfies t.OutputOf<typeof schema>;
 
 export const invalidData = {
-  password: '___',
-  email: '',
-  birthYear: 'birthYear',
-  like: [{ id: 'z' }],
-} as any as Schema;
+  username: 'test',
+  password: 'Password123',
+  repeatPassword: 'Password123',
+  birthYear: 2000,
+  accessToken: '1015d809-e99d-41ec-b161-981a3c243df8',
+  email: 'john@doe.com',
+  tags: [{ name: 'test' }],
+  enabled: true,
+  animal: ['dog'],
+  luckyNumbers: [1, 2, '3'],
+  like: [
+    {
+      id: '1',
+      name: 'name',
+    },
+  ],
+  vehicles: [
+    { type: 'car', brand: 'BMW', horsepower: 150 },
+    { type: 'car', brand: 'Mercedes' },
+  ],
+} as unknown as t.OutputOf<typeof schema>;
 
 export const fields: Record<InternalFieldName, Field['_f']> = {
   username: {
