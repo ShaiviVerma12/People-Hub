@@ -1,16 +1,12 @@
-export * from './normalize-path.js';
-export * from './types.js';
-export * from './ast-utils.js';
-export * from './connection.js';
-export * from './devtools-packages.js';
-export * from './editor.js';
-export * from './enhance-logs.js';
-export * from './inject-plugin.js';
-export * from './inject-source.js';
-export * from './matcher.js';
-export * from './offset-to-loc.js';
-export * from './package-manager.js';
-export * from './remove-devtools.js';
-export * from './runtime-bridge.js';
-export * from './virtual-console.js';
-export * from './utils.js';
+import { EventClient as EventClientImpl } from './plugin.js';
+/**
+ * The real `EventClient` in development; a no-op everywhere else.
+ *
+ * Production bundlers replace `process.env.NODE_ENV` with a literal, fold this
+ * ternary to `EventClientNoOp`, and tree-shake `./plugin` out of the bundle.
+ * To keep the real client in production, import it from
+ * `@tanstack/devtools-event-client/production` instead.
+ */
+declare const EventClient: typeof EventClientImpl;
+type EventClient<TEventMap extends Record<string, any>> = EventClientImpl<TEventMap>;
+export { EventClient };

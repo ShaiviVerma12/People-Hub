@@ -1,28 +1,12 @@
-import { StandardSchemaV1 } from '@standard-schema/spec';
-
+import { EventClient as EventClientImpl } from './plugin.cjs';
 /**
- * Creates and returns the dot path of an issue if possible.
+ * The real `EventClient` in development; a no-op everywhere else.
  *
- * @param issue The issue to get the dot path from.
- *
- * @returns The dot path or null.
+ * Production bundlers replace `process.env.NODE_ENV` with a literal, fold this
+ * ternary to `EventClientNoOp`, and tree-shake `./plugin` out of the bundle.
+ * To keep the real client in production, import it from
+ * `@tanstack/devtools-event-client/production` instead.
  */
-declare function getDotPath(issue: StandardSchemaV1.Issue): string | null;
-
-/**
- * A schema error with useful information.
- */
-declare class SchemaError extends Error {
-    /**
-     * The schema issues.
-     */
-    readonly issues: ReadonlyArray<StandardSchemaV1.Issue>;
-    /**
-     * Creates a schema error with useful information.
-     *
-     * @param issues The schema issues.
-     */
-    constructor(issues: ReadonlyArray<StandardSchemaV1.Issue>);
-}
-
-export { SchemaError, getDotPath };
+declare const EventClient: typeof EventClientImpl;
+type EventClient<TEventMap extends Record<string, any>> = EventClientImpl<TEventMap>;
+export { EventClient };

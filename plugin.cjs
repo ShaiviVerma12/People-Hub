@@ -193,6 +193,6 @@ var EventClient = class {
 	}
 };
 //#endregion
-export { EventClient };
+exports.EventClient = EventClient;
 
-//# sourceMappingURL=plugin.js.map
+//# sourceMappingURL=plugin.cjs.map

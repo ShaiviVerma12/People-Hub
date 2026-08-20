@@ -1,16 +1,16 @@
-import { normalizePath } from "./normalize-path.js";
-import { forEachChild, walk } from "./ast-utils.js";
-import { getDevServerOrigin, getDevtoolsConnection, getDevtoolsFileId, setDevServerOrigin, setDevtoolsConnection, setDevtoolsFileId } from "./connection.js";
-import { TANSTACK_DEVTOOLS_PACKAGES, isTanStackDevtoolsImport } from "./devtools-packages.js";
-import { DEFAULT_EDITOR_CONFIG, handleOpenSource } from "./editor.js";
-import { createLocMapper } from "./offset-to-loc.js";
-import { enhanceConsoleLog } from "./enhance-logs.js";
-import { detectDevtoolsFile, findDevtoolsComponentName, injectPluginIntoFile, transformAndInject } from "./inject-plugin.js";
-import { matcher } from "./matcher.js";
-import { addSourceToJsx } from "./inject-source.js";
-import { handleDevToolsRequest, parseOpenSourceParam, readPackageJson, stripEnhancedLogPrefix, tryParseJson } from "./utils.js";
-import { addPluginToDevtools, emitOutdatedDeps, installPackage } from "./package-manager.js";
-import { removeDevtools } from "./remove-devtools.js";
-import { generateRuntimeBridgeCode, injectRuntimeBridge, wireRuntimeBridgeChannels } from "./runtime-bridge.js";
-import { generateConsolePipeCode } from "./virtual-console.js";
-export { DEFAULT_EDITOR_CONFIG, TANSTACK_DEVTOOLS_PACKAGES, addPluginToDevtools, addSourceToJsx, createLocMapper, detectDevtoolsFile, emitOutdatedDeps, enhanceConsoleLog, findDevtoolsComponentName, forEachChild, generateConsolePipeCode, generateRuntimeBridgeCode, getDevServerOrigin, getDevtoolsConnection, getDevtoolsFileId, handleDevToolsRequest, handleOpenSource, injectPluginIntoFile, injectRuntimeBridge, installPackage, isTanStackDevtoolsImport, matcher, normalizePath, parseOpenSourceParam, readPackageJson, removeDevtools, setDevServerOrigin, setDevtoolsConnection, setDevtoolsFileId, stripEnhancedLogPrefix, transformAndInject, tryParseJson, walk, wireRuntimeBridgeChannels };
+import { EventClient as EventClient$1 } from "./plugin.js";
+import { EventClientNoOp } from "./noop.js";
+//#region src/index.ts
+/**
+* The real `EventClient` in development; a no-op everywhere else.
+*
+* Production bundlers replace `process.env.NODE_ENV` with a literal, fold this
+* ternary to `EventClientNoOp`, and tree-shake `./plugin` out of the bundle.
+* To keep the real client in production, import it from
+* `@tanstack/devtools-event-client/production` instead.
+*/
+var EventClient = process.env.NODE_ENV !== "development" ? EventClientNoOp : EventClient$1;
+//#endregion
+export { EventClient };
+
+//# sourceMappingURL=index.js.map
