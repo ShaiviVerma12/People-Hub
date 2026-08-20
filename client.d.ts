@@ -1,1 +1,2 @@
-export * from '@tanstack/react-start-client';
+export declare const isServer = false;
+export declare const loadServerRoute: never;

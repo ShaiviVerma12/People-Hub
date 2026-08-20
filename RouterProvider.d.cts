@@ -1,23 +1,27 @@
-import { AnyRouter, RegisteredRouter, RouterOptions } from '@tanstack/router-core';
-import * as React from 'react';
-/**
- * Low-level provider that places the router into React context and optionally
- * updates router options from props. Most apps should use `RouterProvider`.
- */
-export declare function RouterContextProvider<TRouter extends AnyRouter = RegisteredRouter, TDehydrated extends Record<string, any> = Record<string, any>>({ router, children, ...rest }: RouterProps<TRouter, TDehydrated> & {
-    children: React.ReactNode;
-}): import("react/jsx-runtime").JSX.Element;
-/**
- * Renders the current match presentation and provides the router to the React
- * tree via context.
- *
- * Accepts the same options as `createRouter` via props to update the router
- * instance after creation.
- *
- * @link https://tanstack.com/router/latest/docs/framework/react/api/router/createRouterFunction
- */
-export declare function RouterProvider<TRouter extends AnyRouter = RegisteredRouter, TDehydrated extends Record<string, any> = Record<string, any>>({ router, ...rest }: RouterProps<TRouter, TDehydrated>): import("react/jsx-runtime").JSX.Element;
-export type RouterProps<TRouter extends AnyRouter = RegisteredRouter, TDehydrated extends Record<string, any> = Record<string, any>> = Omit<RouterOptions<TRouter['routeTree'], NonNullable<TRouter['options']['trailingSlash']>, NonNullable<TRouter['options']['defaultStructuralSharing']>, TRouter['history'], TDehydrated>, 'context'> & {
-    router: TRouter;
-    context?: Partial<RouterOptions<TRouter['routeTree'], NonNullable<TRouter['options']['trailingSlash']>, NonNullable<TRouter['options']['defaultStructuralSharing']>, TRouter['history'], TDehydrated>['context']>;
-};
+import { NavigateOptions, ToOptions } from './link.cjs';
+import { ParsedLocation } from './location.cjs';
+import { RoutePaths } from './routeInfo.cjs';
+import { RegisteredRouter, ViewTransitionOptions } from './router.cjs';
+export interface MatchLocation {
+    to?: string | number | null;
+    fuzzy?: boolean;
+    caseSensitive?: boolean;
+    from?: string;
+}
+export interface CommitLocationOptions {
+    replace?: boolean;
+    resetScroll?: boolean;
+    hashScrollIntoView?: boolean | ScrollIntoViewOptions;
+    viewTransition?: boolean | ViewTransitionOptions;
+    /**
+     * @deprecated All navigations use transitions under the hood now
+     **/
+    startTransition?: boolean;
+    ignoreBlocker?: boolean;
+}
+export type NavigateFn = <TRouter extends RegisteredRouter, TTo extends string | undefined, TFrom extends RoutePaths<TRouter['routeTree']> | string = string, TMaskFrom extends RoutePaths<TRouter['routeTree']> | string = TFrom, TMaskTo extends string = ''>(opts: NavigateOptions<TRouter, TFrom, TTo, TMaskFrom, TMaskTo>) => Promise<void>;
+export type BuildLocationFn = <TRouter extends RegisteredRouter, TTo extends string | undefined, TFrom extends RoutePaths<TRouter['routeTree']> | string = string, TMaskFrom extends RoutePaths<TRouter['routeTree']> | string = TFrom, TMaskTo extends string = ''>(opts: ToOptions<TRouter, TFrom, TTo, TMaskFrom, TMaskTo> & {
+    leaveParams?: boolean;
+    _includeValidateSearch?: boolean;
+    _isNavigate?: boolean;
+}) => ParsedLocation;
