@@ -1,248 +1,519 @@
-import fs from 'node:fs/promises'
-import { normalizePath } from './normalize-path'
-import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { PackageJson } from '@tanstack/devtools-client'
+import { timeoutManager } from './timeoutManager'
+import type {
+  DefaultError,
+  FetchStatus,
+  MutationKey,
+  MutationStatus,
+  QueryBooleanOption,
+  QueryFunction,
+  QueryKey,
+  QueryOptions,
+  StaleTime,
+  StaleTimeFunction,
+} from './types'
+import type { Mutation } from './mutation'
+import type { FetchOptions, Query } from './query'
 
-type DevToolsRequestHandler = (data: any) => void
+// TYPES
 
-type NextFunction = (err?: unknown) => void
+type DropLast<T extends ReadonlyArray<unknown>> = T extends readonly [
+  ...infer R,
+  unknown,
+]
+  ? readonly [...R]
+  : never
 
-type DevToolsViteRequestOptions = {
-  onOpenSource?: DevToolsRequestHandler
-  onConsolePipe?: (entries: Array<any>) => void
-  onServerConsolePipe?: (entries: Array<any>) => void
-  onConsolePipeSSE?: (
-    res: ServerResponse<IncomingMessage>,
-    req: IncomingMessage,
-  ) => void
+type TuplePrefixes<T extends ReadonlyArray<unknown>> = T extends readonly []
+  ? readonly []
+  : TuplePrefixes<DropLast<T>> | T
+
+export interface QueryFilters<TQueryKey extends QueryKey = QueryKey> {
+  /**
+   * Filter to active queries, inactive queries or all queries
+   */
+  type?: QueryTypeFilter
+  /**
+   * Match query key exactly
+   */
+  exact?: boolean
+  /**
+   * Include queries matching this predicate function
+   */
+  predicate?: (query: Query) => boolean
+  /**
+   * Include queries matching this query key
+   */
+  queryKey?: TQueryKey | TuplePrefixes<TQueryKey>
+  /**
+   * Include or exclude stale queries
+   */
+  stale?: boolean
+  /**
+   * Include queries matching their fetchStatus
+   */
+  fetchStatus?: FetchStatus
 }
 
-export const handleDevToolsRequest = (
-  req: IncomingMessage & { url?: string },
-  res: ServerResponse<IncomingMessage>,
-  next: NextFunction,
-  cbOrOptions: DevToolsRequestHandler | DevToolsViteRequestOptions,
-) => {
-  // Normalize to options object for backward compatibility
-  const options: DevToolsViteRequestOptions =
-    typeof cbOrOptions === 'function'
-      ? { onOpenSource: cbOrOptions }
-      : cbOrOptions
-
-  // Handle open-source requests
-  if (req.url?.includes('__tsd/open-source')) {
-    const searchParams = new URLSearchParams(req.url.split('?')[1])
-
-    const source = searchParams.get('source')
-    if (!source) {
-      return
-    }
-
-    const parsed = parseOpenSourceParam(source)
-    if (!parsed) {
-      return
-    }
-    const { file, line, column } = parsed
-
-    options.onOpenSource?.({
-      type: 'open-source',
-      routine: 'open-source',
-      data: {
-        source: file ? normalizePath(`${process.cwd()}/${file}`) : undefined,
-        line,
-        column,
-      },
-    })
-    res.setHeader('Content-Type', 'text/html')
-    res.write(`<script> window.close(); </script>`)
-    res.end()
-    return
-  }
-
-  // Handle console-pipe SSE endpoint (browser subscribes to server logs)
-  if (req.url?.includes('__tsd/console-pipe/sse') && req.method === 'GET') {
-    if (options.onConsolePipeSSE) {
-      options.onConsolePipeSSE(res, req)
-      return
-    }
-    return next()
-  }
-
-  // Handle server console-pipe POST endpoint (from app server runtime)
-  if (req.url?.includes('__tsd/console-pipe/server') && req.method === 'POST') {
-    if (options.onServerConsolePipe) {
-      let body = ''
-      req.on('data', (chunk: Buffer) => {
-        body += chunk.toString()
-      })
-      req.on('end', () => {
-        try {
-          const { entries } = JSON.parse(body)
-          options.onServerConsolePipe!(entries)
-          res.statusCode = 200
-          res.end('OK')
-        } catch {
-          res.statusCode = 400
-          res.end('Bad Request')
-        }
-      })
-      return
-    }
-    return next()
-  }
-
-  // Handle console-pipe POST endpoint (from client)
-  if (req.url?.includes('__tsd/console-pipe') && req.method === 'POST') {
-    if (options.onConsolePipe) {
-      let body = ''
-      req.on('data', (chunk: Buffer) => {
-        body += chunk.toString()
-      })
-      req.on('end', () => {
-        try {
-          const { entries } = JSON.parse(body)
-          options.onConsolePipe!(entries)
-          res.statusCode = 200
-          res.end('OK')
-        } catch {
-          res.statusCode = 400
-          res.end('Bad Request')
-        }
-      })
-      return
-    }
-    return next()
-  }
-
-  if (!req.url?.includes('__tsd')) {
-    return next()
-  }
-
-  const chunks: Array<any> = []
-  req.on('data', (chunk) => {
-    chunks.push(chunk)
-  })
-  req.on('end', () => {
-    const dataToParse = Buffer.concat(chunks)
-    try {
-      const parsedData = JSON.parse(dataToParse.toString())
-      options.onOpenSource?.(parsedData)
-    } catch (e) {}
-    res.write('OK')
-    res.end()
-  })
+export interface MutationFilters<
+  TData = unknown,
+  TError = DefaultError,
+  TVariables = unknown,
+  TOnMutateResult = unknown,
+> {
+  /**
+   * Match mutation key exactly
+   */
+  exact?: boolean
+  /**
+   * Include mutations matching this predicate function
+   */
+  predicate?: (
+    mutation: Mutation<TData, TError, TVariables, TOnMutateResult>,
+  ) => boolean
+  /**
+   * Include mutations matching this mutation key
+   */
+  mutationKey?: TuplePrefixes<MutationKey>
+  /**
+   * Filter by mutation status
+   */
+  status?: MutationStatus
 }
 
-export const parseOpenSourceParam = (source: string) => {
-  // Capture everything up to the last two colon-separated numeric parts as the file.
-  // This supports filenames that may themselves contain colons.
-  const parts = source.match(/^(.+):(\d+):(\d+)$/)
+export type Updater<TInput, TOutput> = TOutput | ((input: TInput) => TOutput)
 
-  if (!parts) return null
+export type QueryTypeFilter = 'all' | 'active' | 'inactive'
 
-  const [, file, line, column] = parts
-  return { file, line, column }
+// UTILS
+
+/** @deprecated
+ * use `environmentManager.isServer()` instead.
+ */
+export const isServer = typeof window === 'undefined' || 'Deno' in globalThis
+
+export function noop(): void
+export function noop(): undefined
+export function noop() {}
+
+export function functionalUpdate<TInput, TOutput>(
+  updater: Updater<TInput, TOutput>,
+  input: TInput,
+): TOutput {
+  return typeof updater === 'function'
+    ? (updater as (_: TInput) => TOutput)(input)
+    : updater
 }
 
-const tryReadFile = async (filePath: string) => {
-  try {
-    const data = await fs.readFile(filePath, 'utf-8')
-    return data
-  } catch (error) {
-    return null
-  }
+export function isValidTimeout(value: unknown): value is number {
+  return typeof value === 'number' && value >= 0 && value !== Infinity
 }
 
-export const tryParseJson = <T extends any>(
-  jsonString: string | null | undefined,
-) => {
-  if (!jsonString) {
-    return null
-  }
-  try {
-    const result = JSON.parse(jsonString)
-    return result as T
-  } catch (error) {
-    return null
-  }
+export function timeUntilStale(updatedAt: number, staleTime?: number): number {
+  return Math.max(updatedAt + (staleTime || 0) - Date.now(), 0)
 }
 
-export const readPackageJson = async () =>
-  tryParseJson<PackageJson>(await tryReadFile(process.cwd() + '/package.json'))
+export function resolveStaleTime<
+  TQueryFnData = unknown,
+  TError = DefaultError,
+  TData = TQueryFnData,
+  TQueryKey extends QueryKey = QueryKey,
+>(
+  staleTime:
+    | undefined
+    | StaleTimeFunction<TQueryFnData, TError, TData, TQueryKey>,
+  query: Query<TQueryFnData, TError, TData, TQueryKey>,
+): StaleTime | undefined {
+  return typeof staleTime === 'function' ? staleTime(query) : staleTime
+}
+
+export function resolveQueryBoolean<
+  TQueryFnData = unknown,
+  TError = DefaultError,
+  TData = TQueryFnData,
+  TQueryKey extends QueryKey = QueryKey,
+>(
+  option:
+    | undefined
+    | QueryBooleanOption<TQueryFnData, TError, TData, TQueryKey>,
+  query: Query<TQueryFnData, TError, TData, TQueryKey>,
+): boolean | undefined {
+  return typeof option === 'function' ? option(query) : option
+}
+
+export function matchQuery(
+  filters: QueryFilters,
+  query: Query<any, any, any, any>,
+): boolean {
+  const {
+    type = 'all',
+    exact,
+    fetchStatus,
+    predicate,
+    queryKey,
+    stale,
+  } = filters
+
+  if (queryKey) {
+    if (exact) {
+      if (query.queryHash !== hashQueryKeyByOptions(queryKey, query.options)) {
+        return false
+      }
+    } else if (!partialMatchKey(query.queryKey, queryKey)) {
+      return false
+    }
+  }
+
+  if (type !== 'all') {
+    const isActive = query.isActive()
+    if (type === 'active' && !isActive) {
+      return false
+    }
+    if (type === 'inactive' && isActive) {
+      return false
+    }
+  }
+
+  if (typeof stale === 'boolean' && query.isStale() !== stale) {
+    return false
+  }
+
+  if (fetchStatus && fetchStatus !== query.state.fetchStatus) {
+    return false
+  }
+
+  if (predicate && !predicate(query)) {
+    return false
+  }
+
+  return true
+}
+
+export function matchMutation(
+  filters: MutationFilters,
+  mutation: Mutation<any, any>,
+): boolean {
+  const { exact, status, predicate, mutationKey } = filters
+  if (mutationKey) {
+    if (!mutation.options.mutationKey) {
+      return false
+    }
+    if (exact) {
+      if (hashKey(mutation.options.mutationKey) !== hashKey(mutationKey)) {
+        return false
+      }
+    } else if (!partialMatchKey(mutation.options.mutationKey, mutationKey)) {
+      return false
+    }
+  }
+
+  if (status && mutation.state.status !== status) {
+    return false
+  }
+
+  if (predicate && !predicate(mutation)) {
+    return false
+  }
+
+  return true
+}
+
+export function hashQueryKeyByOptions<TQueryKey extends QueryKey = QueryKey>(
+  queryKey: TQueryKey,
+  options?: Pick<QueryOptions<any, any, any, any>, 'queryKeyHashFn'>,
+): string {
+  const hashFn = options?.queryKeyHashFn || hashKey
+  return hashFn(queryKey)
+}
 
 /**
- * Extracts and formats the source location from enhanced client console logs.
- * Instead of stripping the prefix entirely, we extract the file:line:column
- * from the "Go to Source" URL and use that as a prefix.
- *
- * Enhanced logs format (two variants):
- * 1. ['%cLOG%c %cGo to Source: http://...?source=%2Fsrc%2F...%c \n → ', 'color:...', 'color:...', 'color:...', 'color:...', 'message']
- * 2. ['\x1b[...]%s\x1b[...]', '%cLOG%c %cGo to Source: ...%c \n → ', 'color:...', 'color:...', 'color:...', 'color:...', 'message']
- *
- * Output: ['src/components/Header.tsx:26:13', 'message']
+ * Default query & mutation keys hash function.
+ * Hashes the value into a stable hash.
  */
-export const stripEnhancedLogPrefix = (
-  args: Array<unknown>,
-  formatSourceLocation?: (location: string) => unknown,
-): Array<unknown> => {
-  if (args.length === 0) return args
+export function hashKey(queryKey: QueryKey | MutationKey): string {
+  return JSON.stringify(queryKey, (_, val) =>
+    isPlainObject(val)
+      ? Object.keys(val)
+          .sort()
+          .reduce((result, key) => {
+            result[key] = val[key]
+            return result
+          }, {} as any)
+      : val,
+  )
+}
 
-  // Find the arg that contains the Go to Source URL
-  let sourceArgIndex = -1
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i]
-    if (typeof arg === 'string' && arg.includes('__tsd/open-source?source=')) {
-      sourceArgIndex = i
-      break
-    }
+/**
+ * Checks if key `b` partially matches with key `a`.
+ */
+export function partialMatchKey(a: QueryKey, b: QueryKey): boolean
+export function partialMatchKey(a: any, b: any): boolean {
+  if (a === b) {
+    return true
   }
 
-  // If no source URL found, return args as-is (not an enhanced log)
-  if (sourceArgIndex === -1) {
-    return args
+  if (typeof a !== typeof b) {
+    return false
   }
 
-  const sourceArg = args[sourceArgIndex] as string
-
-  // Extract the source from the "Go to Source" URL
-  // URL format: http://localhost:3000/__tsd/open-source?source=%2Fsrc%2Ffile.tsx%3A26%3A13%c
-  // Note: The URL ends with %c which is a console format specifier, not URL encoding
-  let sourceLocation = ''
-  const sourceMatch = sourceArg.match(/source=([^&\s]+?)%c/)
-  if (sourceMatch?.[1]) {
-    try {
-      sourceLocation = decodeURIComponent(sourceMatch[1])
-      // Remove leading slash if present
-      if (sourceLocation.startsWith('/')) {
-        sourceLocation = sourceLocation.slice(1)
+  if (a && b && typeof a === 'object' && typeof b === 'object') {
+    if (Array.isArray(a) && Array.isArray(b)) {
+      for (let i = 0; i < b.length; i++) {
+        if (!partialMatchKey(a[i], b[i])) {
+          return false
+        }
       }
-    } catch {
-      // If decoding fails, leave it empty
+      return true
+    }
+
+    const bKeys = Object.keys(b)
+    for (const key of bKeys) {
+      if (!partialMatchKey(a[key], b[key])) {
+        return false
+      }
+    }
+    return true
+  }
+
+  return false
+}
+
+const hasOwn = Object.prototype.hasOwnProperty
+
+/**
+ * This function returns `a` if `b` is deeply equal.
+ * If not, it will replace any deeply equal children of `b` with those of `a`.
+ * This can be used for structural sharing between JSON values for example.
+ */
+export function replaceEqualDeep<T>(a: unknown, b: T, depth?: number): T
+export function replaceEqualDeep(a: any, b: any, depth = 0): any {
+  if (a === b) {
+    return a
+  }
+
+  if (depth > 500) return b
+
+  const array = isPlainArray(a) && isPlainArray(b)
+
+  if (!array && !(isPlainObject(a) && isPlainObject(b))) return b
+
+  const aItems = array ? a : Object.keys(a)
+  const aSize = aItems.length
+  const bItems = array ? b : Object.keys(b)
+  const bSize = bItems.length
+  const copy: any = array ? new Array(bSize) : {}
+
+  let equalItems = 0
+
+  for (let i = 0; i < bSize; i++) {
+    const key: any = array ? i : bItems[i]
+    const aItem = a[key]
+    const bItem = b[key]
+
+    if (aItem === bItem) {
+      copy[key] = aItem
+      if (array ? i < aSize : hasOwn.call(a, key)) equalItems++
+      continue
+    }
+
+    if (
+      aItem === null ||
+      bItem === null ||
+      typeof aItem !== 'object' ||
+      typeof bItem !== 'object'
+    ) {
+      copy[key] = bItem
+      continue
+    }
+
+    const v = replaceEqualDeep(aItem, bItem, depth + 1)
+    copy[key] = v
+    if (v === aItem) equalItems++
+  }
+
+  return aSize === bSize && equalItems === aSize ? a : copy
+}
+
+/**
+ * Shallow compare objects.
+ */
+export function shallowEqualObjects<T extends Record<string, any>>(
+  a: T,
+  b: T | undefined,
+): boolean {
+  if (!b || Object.keys(a).length !== Object.keys(b).length) {
+    return false
+  }
+
+  for (const key in a) {
+    if (a[key] !== b[key]) {
+      return false
     }
   }
 
-  // Count %c markers in the source arg to know how many style args follow it
-  const styleCount = (sourceArg.match(/%c/g) || []).length
+  return true
+}
 
-  // The actual user args start after the source arg and all its style args
-  const userArgsStart = sourceArgIndex + 1 + styleCount
+export function isPlainArray(value: unknown): value is Array<unknown> {
+  return Array.isArray(value) && value.length === Object.keys(value).length
+}
 
-  // Build the result: source location prefix + remaining args (the actual user data)
-  const result: Array<unknown> = []
-
-  // Add source location as prefix if we found one
-  if (sourceLocation) {
-    result.push(
-      formatSourceLocation
-        ? formatSourceLocation(sourceLocation)
-        : sourceLocation,
-    )
+// Copied from: https://github.com/jonschlinkert/is-plain-object
+export function isPlainObject(o: any): o is Record<PropertyKey, unknown> {
+  if (!hasObjectPrototype(o)) {
+    return false
   }
 
-  // Add remaining args (the actual user data)
-  for (let i = userArgsStart; i < args.length; i++) {
-    result.push(args[i])
+  // If has no constructor
+  const ctor = o.constructor
+  if (ctor === undefined) {
+    return true
   }
 
-  return result.length > 0 ? result : args
+  // If has modified prototype
+  const prot = ctor.prototype
+  if (!hasObjectPrototype(prot)) {
+    return false
+  }
+
+  // If constructor does not have an Object-specific method
+  if (!prot.hasOwnProperty('isPrototypeOf')) {
+    return false
+  }
+
+  // Handles Objects created by Object.create(<arbitrary prototype>)
+  if (Object.getPrototypeOf(o) !== Object.prototype) {
+    return false
+  }
+
+  // Most likely a plain Object
+  return true
+}
+
+function hasObjectPrototype(o: any): boolean {
+  return Object.prototype.toString.call(o) === '[object Object]'
+}
+
+export function sleep(timeout: number): Promise<void> {
+  return new Promise((resolve) => {
+    timeoutManager.setTimeout(resolve, timeout)
+  })
+}
+
+export function replaceData<
+  TData,
+  TOptions extends QueryOptions<any, any, any, any>,
+>(prevData: TData | undefined, data: TData, options: TOptions): TData {
+  if (typeof options.structuralSharing === 'function') {
+    return options.structuralSharing(prevData, data) as TData
+  } else if (options.structuralSharing !== false) {
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        return replaceEqualDeep(prevData, data)
+      } catch (error) {
+        console.error(
+          `Structural sharing requires data to be JSON serializable. To fix this, turn off structuralSharing or return JSON-serializable data from your queryFn. [${options.queryHash}]: ${error}`,
+        )
+
+        // Prevent the replaceEqualDeep from being called again down below.
+        throw error
+      }
+    }
+    // Structurally share data between prev and new data if needed
+    return replaceEqualDeep(prevData, data)
+  }
+  return data
+}
+
+export function keepPreviousData<T>(
+  previousData: T | undefined,
+): T | undefined {
+  return previousData
+}
+
+export function addToEnd<T>(items: Array<T>, item: T, max = 0): Array<T> {
+  const newItems = [...items, item]
+  return max && newItems.length > max ? newItems.slice(1) : newItems
+}
+
+export function addToStart<T>(items: Array<T>, item: T, max = 0): Array<T> {
+  const newItems = [item, ...items]
+  return max && newItems.length > max ? newItems.slice(0, -1) : newItems
+}
+
+export const skipToken = Symbol()
+export type SkipToken = typeof skipToken
+
+export function ensureQueryFn<
+  TQueryFnData = unknown,
+  TQueryKey extends QueryKey = QueryKey,
+>(
+  options: {
+    queryFn?: QueryFunction<TQueryFnData, TQueryKey> | SkipToken
+    queryHash?: string
+  },
+  fetchOptions?: FetchOptions<TQueryFnData>,
+): QueryFunction<TQueryFnData, TQueryKey> {
+  if (process.env.NODE_ENV !== 'production') {
+    if (options.queryFn === skipToken) {
+      console.error(
+        `Attempted to invoke queryFn when set to skipToken. This is likely a configuration error. Query hash: '${options.queryHash}'`,
+      )
+    }
+  }
+
+  // if we attempt to retry a fetch that was triggered from an initialPromise
+  // when we don't have a queryFn yet, we can't retry, so we just return the already rejected initialPromise
+  // if an observer has already mounted, we will be able to retry with that queryFn
+  if (!options.queryFn && fetchOptions?.initialPromise) {
+    return () => fetchOptions.initialPromise!
+  }
+
+  if (!options.queryFn || options.queryFn === skipToken) {
+    return () =>
+      Promise.reject(new Error(`Missing queryFn: '${options.queryHash}'`))
+  }
+
+  return options.queryFn
+}
+
+export function shouldThrowError<T extends (...args: Array<any>) => boolean>(
+  throwOnError: boolean | T | undefined,
+  params: Parameters<T>,
+): boolean {
+  // Allow throwOnError function to override throwing behavior on a per-error basis
+  if (typeof throwOnError === 'function') {
+    return throwOnError(...params)
+  }
+
+  return !!throwOnError
+}
+
+export function addConsumeAwareSignal<T>(
+  object: T,
+  getSignal: () => AbortSignal,
+  onCancelled: VoidFunction,
+): T & { signal: AbortSignal } {
+  let consumed = false
+  let signal: AbortSignal | undefined
+
+  Object.defineProperty(object, 'signal', {
+    enumerable: true,
+    get: () => {
+      signal ??= getSignal()
+      if (consumed) {
+        return signal
+      }
+
+      consumed = true
+      if (signal.aborted) {
+        onCancelled()
+      } else {
+        signal.addEventListener('abort', onCancelled, { once: true })
+      }
+
+      return signal
+    },
+  })
+
+  return object as T & { signal: AbortSignal }
 }

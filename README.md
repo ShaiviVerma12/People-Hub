@@ -1,20 +1,32 @@
-# @tanstack/devtools-vite
+### Intro
 
-This package is still under active development and might have breaking changes in the future. Please use it with caution.
+The prerequisite for this code mod is to migrate your usages to the new syntax, so overloads for hooks and `QueryClient` methods shouldn't be available anymore.
 
-## General Usage
+### Affected usages
 
-The `@tanstack/devtools-vite` package is designed to work with Vite projects.
-Plug it into your plugins array:
+Please note, this code mod transforms usages only where the first argument is an object expression.
+
+The following usage should be transformed by the code mod:
 
 ```ts
-import { devtools } from '@tanstack/devtools-vite'
-
-export default {
-  plugins: [
-    // Important to include it first!
-    devtools(),
-    ... //rest of the plugins
-  ],
-}
+const { data } = useQuery({
+  queryKey: ['posts'],
+  queryFn: queryFn,
+  keepPreviousData: true,
+})
 ```
+
+But the following usage won't be transformed by the code mod, because the first argument an identifier:
+
+```ts
+const hookArgument = {
+  queryKey: ['posts'],
+  queryFn: queryFn,
+  keepPreviousData: true,
+}
+const { data } = useQuery(hookArgument)
+```
+
+### Troubleshooting
+
+In case of any errors, feel free to reach us out via Discord or open an issue. If you open an issue, please provide a code snippet as well, because without a snippet we cannot find the bug in the code mod.

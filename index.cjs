@@ -1,113 +1,123 @@
-"use strict";
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
-};
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __reExport = (target, mod, secondTarget) => (__copyProps(target, mod, "default"), secondTarget && __copyProps(secondTarget, mod, "default"));
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+const UnknownUsageError = require('./unknown-usage-error.cjs')
 
-// src/index.ts
-var index_exports = {};
-__export(index_exports, {
-  CancelledError: () => import_retryer.CancelledError,
-  InfiniteQueryObserver: () => import_infiniteQueryObserver.InfiniteQueryObserver,
-  Mutation: () => import_mutation.Mutation,
-  MutationCache: () => import_mutationCache.MutationCache,
-  MutationObserver: () => import_mutationObserver.MutationObserver,
-  QueriesObserver: () => import_queriesObserver.QueriesObserver,
-  Query: () => import_query.Query,
-  QueryCache: () => import_queryCache.QueryCache,
-  QueryClient: () => import_queryClient.QueryClient,
-  QueryObserver: () => import_queryObserver.QueryObserver,
-  defaultScheduler: () => import_notifyManager.defaultScheduler,
-  defaultShouldDehydrateMutation: () => import_hydration.defaultShouldDehydrateMutation,
-  defaultShouldDehydrateQuery: () => import_hydration.defaultShouldDehydrateQuery,
-  dehydrate: () => import_hydration.dehydrate,
-  environmentManager: () => import_environmentManager.environmentManager,
-  experimental_streamedQuery: () => import_streamedQuery.streamedQuery,
-  focusManager: () => import_focusManager.focusManager,
-  hashKey: () => import_utils.hashKey,
-  hydrate: () => import_hydration.hydrate,
-  isCancelledError: () => import_retryer.isCancelledError,
-  isServer: () => import_utils.isServer,
-  keepPreviousData: () => import_utils.keepPreviousData,
-  matchMutation: () => import_utils.matchMutation,
-  matchQuery: () => import_utils.matchQuery,
-  noop: () => import_utils.noop,
-  notifyManager: () => import_notifyManager.notifyManager,
-  onlineManager: () => import_onlineManager.onlineManager,
-  partialMatchKey: () => import_utils.partialMatchKey,
-  replaceEqualDeep: () => import_utils.replaceEqualDeep,
-  shouldThrowError: () => import_utils.shouldThrowError,
-  skipToken: () => import_utils.skipToken,
-  timeoutManager: () => import_timeoutManager.timeoutManager
-});
-module.exports = __toCommonJS(index_exports);
-var import_focusManager = require("./focusManager.cjs");
-var import_environmentManager = require("./environmentManager.cjs");
-var import_hydration = require("./hydration.cjs");
-var import_infiniteQueryObserver = require("./infiniteQueryObserver.cjs");
-var import_mutationCache = require("./mutationCache.cjs");
-var import_mutationObserver = require("./mutationObserver.cjs");
-var import_notifyManager = require("./notifyManager.cjs");
-var import_onlineManager = require("./onlineManager.cjs");
-var import_queriesObserver = require("./queriesObserver.cjs");
-var import_queryCache = require("./queryCache.cjs");
-var import_queryClient = require("./queryClient.cjs");
-var import_queryObserver = require("./queryObserver.cjs");
-var import_retryer = require("./retryer.cjs");
-var import_timeoutManager = require("./timeoutManager.cjs");
-var import_utils = require("./utils.cjs");
-var import_streamedQuery = require("./streamedQuery.cjs");
-var import_mutation = require("./mutation.cjs");
-var import_query = require("./query.cjs");
-__reExport(index_exports, require("./types.cjs"), module.exports);
-// Annotate the CommonJS export names for ESM import in node:
-0 && (module.exports = {
-  CancelledError,
-  InfiniteQueryObserver,
-  Mutation,
-  MutationCache,
-  MutationObserver,
-  QueriesObserver,
-  Query,
-  QueryCache,
-  QueryClient,
-  QueryObserver,
-  defaultScheduler,
-  defaultShouldDehydrateMutation,
-  defaultShouldDehydrateQuery,
-  dehydrate,
-  environmentManager,
-  experimental_streamedQuery,
-  focusManager,
-  hashKey,
-  hydrate,
-  isCancelledError,
-  isServer,
-  keepPreviousData,
-  matchMutation,
-  matchQuery,
-  noop,
-  notifyManager,
-  onlineManager,
-  partialMatchKey,
-  replaceEqualDeep,
-  shouldThrowError,
-  skipToken,
-  timeoutManager,
-  ...require("./types.cjs")
-});
-//# sourceMappingURL=index.cjs.map
+module.exports = ({ jscodeshift, utils }) => {
+  /**
+   *
+   * @param {import('jscodeshift').ObjectExpression} source
+   * @param {import('jscodeshift').ObjectExpression} target
+   * @param {(node: import('jscodeshift').Node) => boolean} predicate
+   */
+  const copyPropertiesFromSource = (source, target, predicate) => {
+    source.properties.forEach((property) => {
+      if (predicate(property)) {
+        target.properties.push(property)
+      }
+    })
+  }
+
+  /**
+   * @param {import('jscodeshift').NodePath} path
+   * @param {string} argumentName
+   * @param {string} filePath
+   * @returns {*}
+   */
+  const getBindingFromScope = (path, argumentName, filePath) => {
+    /**
+     * If the current scope contains the declaration then we can use the actual one else we attempt to find the
+     * binding from above.
+     */
+    const scope = path.scope.declares(argumentName)
+      ? path.scope
+      : path.scope.lookup(argumentName)
+
+    /**
+     * The declaration couldn't be found for some reason, time to move on. We warn the user it needs to be rewritten
+     * by themselves.
+     */
+    if (!scope) {
+      return undefined
+    }
+
+    const binding = scope.bindings[argumentName]
+      .filter((item) => utils.isIdentifier(item.value))
+      .map((item) => item.parentPath.value)
+      .at(0)
+
+    if (!binding) {
+      throw new UnknownUsageError(path.node, filePath)
+    }
+
+    return binding
+  }
+
+  /**
+   * @param {import('jscodeshift').VariableDeclarator} binding
+   * @returns {import('jscodeshift').Node|undefined}
+   */
+  const getInitializerByDeclarator = (binding) => {
+    const isVariableDeclaration = jscodeshift.match(binding, {
+      type: jscodeshift.VariableDeclarator.name,
+    })
+
+    if (!isVariableDeclaration) {
+      return undefined
+    }
+
+    const isTSAsExpression = jscodeshift.match(binding.init, {
+      type: jscodeshift.TSAsExpression.name,
+    })
+
+    return isTSAsExpression ? binding.init.expression : binding.init
+  }
+
+  /**
+   * @param {import('jscodeshift').Node} node
+   * @returns {boolean}
+   */
+  const isArrayExpressionVariable = (node) =>
+    jscodeshift.match(node, {
+      type: jscodeshift.VariableDeclarator.name,
+      init: {
+        type: jscodeshift.ArrayExpression.name,
+      },
+    })
+
+  /**
+   * @param {import('jscodeshift').NodePath} path
+   * @param {import('jscodeshift').Node} node
+   * @param {"queryKey"|"mutationKey"} keyName
+   * @param {string} filePath
+   * @returns {import('jscodeshift').Property|undefined}
+   */
+  const transformArgumentToKey = (path, node, keyName, filePath) => {
+    // If the first argument is an identifier we have to infer its type if possible.
+    if (utils.isIdentifier(node)) {
+      const binding = getBindingFromScope(path, node.name, filePath)
+
+      if (isArrayExpressionVariable(binding)) {
+        return jscodeshift.property(
+          'init',
+          jscodeshift.identifier(keyName),
+          jscodeshift.identifier(binding.id.name),
+        )
+      }
+    }
+
+    // If the first argument is an array, then it matches the following overload:
+    // methodName(queryKey?: QueryKey, firstObject?: TFirstObject, secondObject?: TSecondObject)
+    if (utils.isArrayExpression(node)) {
+      // Then we create the 'queryKey' property based on it, because it will be passed to the first argument
+      // that should be an object according to the new signature.
+      return jscodeshift.property('init', jscodeshift.identifier(keyName), node)
+    }
+
+    return undefined
+  }
+
+  return {
+    copyPropertiesFromSource,
+    getInitializerByDeclarator,
+    getBindingFromScope,
+    transformArgumentToKey,
+  }
+}
