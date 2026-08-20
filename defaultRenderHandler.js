@@ -1,12 +1,11 @@
-import { RouterServer } from "./RouterServer.js";
-import { renderRouterToString } from "./renderRouterToString.js";
+import { StartServer } from "./StartServer.js";
 import { jsx } from "react/jsx-runtime";
-import { defineHandlerCallback } from "@tanstack/router-core/ssr/server";
-//#region src/ssr/defaultRenderHandler.tsx
+import { defineHandlerCallback, renderRouterToString } from "@tanstack/react-router/ssr/server";
+//#region src/defaultRenderHandler.tsx
 var defaultRenderHandler = defineHandlerCallback(({ router, responseHeaders }) => renderRouterToString({
 	router,
 	responseHeaders,
-	children: /* @__PURE__ */ jsx(RouterServer, { router })
+	children: /* @__PURE__ */ jsx(StartServer, { router })
 }));
 //#endregion
 export { defaultRenderHandler };

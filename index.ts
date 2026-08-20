@@ -1,32 +1,61 @@
-// Default exports (used by client bundles and SSR)
-// This file is used when importing outside of RSC (React Server Components) context
+export * from '@tanstack/store'
 
-// Types are always available
-export type {
-  AnyCompositeComponent,
-  AnyRenderableServerComponent,
-  RenderableServerComponent,
-  RenderableServerComponentAttributes,
-  RenderableServerComponentBuilder,
-} from './ServerComponentTypes'
+export { useStore } from './useStore'
 
-// CSS hrefs symbol for type-safe access
-export { SERVER_COMPONENT_CSS_HREFS } from './ServerComponentTypes'
+export function shallow<T>(objA: T, objB: T) {
+  if (Object.is(objA, objB)) {
+    return true
+  }
 
-// Stubs for RSC-only functions - throw if called outside RSC context
-export { renderServerComponent } from './renderServerComponent.stub.js'
-export { createCompositeComponent } from './createCompositeComponent.stub.js'
+  if (
+    typeof objA !== 'object' ||
+    objA === null ||
+    typeof objB !== 'object' ||
+    objB === null
+  ) {
+    return false
+  }
 
-// Renderer for composite RSC data (client/SSR)
-export { CompositeComponent } from './CompositeComponent.js'
+  if (objA instanceof Map && objB instanceof Map) {
+    if (objA.size !== objB.size) return false
+    for (const [k, v] of objA) {
+      if (!objB.has(k) || !Object.is(v, objB.get(k))) return false
+    }
+    return true
+  }
 
-// Low-level Flight stream APIs (client/SSR)
-export { createFromReadableStream, createFromFetch } from './flight'
+  if (objA instanceof Set && objB instanceof Set) {
+    if (objA.size !== objB.size) return false
+    for (const v of objA) {
+      if (!objB.has(v)) return false
+    }
+    return true
+  }
 
-// Stub for renderToReadableStream - throws if called outside RSC context
-export { renderToReadableStream } from './flight.stub.js'
+  if (objA instanceof Date && objB instanceof Date) {
+    if (objA.getTime() !== objB.getTime()) return false
+    return true
+  }
 
-// Note: rscSerializationAdapter is intentionally NOT exported here.
-// It imports virtual:tanstack-rsc-hmr which is client-only (not available in SSR).
-// Import directly from '@tanstack/react-start-rsc/serialization.client' or
-// '@tanstack/react-start-rsc/serialization.server' as needed.
+  const keysA = getOwnKeys(objA)
+  if (keysA.length !== getOwnKeys(objB).length) {
+    return false
+  }
+
+  // eslint-disable-next-line @typescript-eslint/prefer-for-of
+  for (let i = 0; i < keysA.length; i++) {
+    if (
+      !Object.prototype.hasOwnProperty.call(objB, keysA[i] as string) ||
+      !Object.is(objA[keysA[i] as keyof T], objB[keysA[i] as keyof T])
+    ) {
+      return false
+    }
+  }
+  return true
+}
+
+function getOwnKeys(obj: object): Array<string | symbol> {
+  return (Object.keys(obj) as Array<string | symbol>).concat(
+    Object.getOwnPropertySymbols(obj),
+  )
+}

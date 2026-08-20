@@ -1,1 +1,1 @@
-export declare const defaultStreamHandler: import('@tanstack/router-core/ssr/server').HandlerCallback<import('@tanstack/router-core').AnyRouter>;
+export declare const defaultStreamHandler: import('@tanstack/start-server-core').HandlerCallback<import('@tanstack/router-core').AnyRouter>;

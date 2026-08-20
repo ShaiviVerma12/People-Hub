@@ -1,6 +1,6 @@
 <img src="https://static.scarf.sh/a.png?x-pxid=d988eb79-b0fc-4a2b-8514-6a1ab932d188" />
 
-# TanStack React Start - Client
+# TanStack React Start - Server
 
 This package is not meant to be used directly. It is a dependency of [`@tanstack/react-start`](https://www.npmjs.com/package/@tanstack/react-start).
 

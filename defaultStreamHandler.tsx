@@ -1,6 +1,8 @@
-import { defineHandlerCallback } from '@tanstack/router-core/ssr/server'
-import { RouterServer } from './RouterServer'
-import { renderRouterToStream } from './renderRouterToStream'
+import {
+  defineHandlerCallback,
+  renderRouterToStream,
+} from '@tanstack/react-router/ssr/server'
+import { StartServer } from './StartServer'
 
 export const defaultStreamHandler = defineHandlerCallback(
   ({ request, router, responseHeaders }) =>
@@ -8,6 +10,6 @@ export const defaultStreamHandler = defineHandlerCallback(
       request,
       router,
       responseHeaders,
-      children: <RouterServer router={router} />,
+      children: <StartServer router={router} />,
     }),
 )
