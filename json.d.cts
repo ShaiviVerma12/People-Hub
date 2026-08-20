@@ -1,10 +1,10 @@
 /**
- * Safely stringify data that may contain BigInt values
- * BigInt values are converted to objects with a special marker
+ * @deprecated Use [`Response.json`](https://developer.mozilla.org/en-US/docs/Web/API/Response/json_static) from the standard Web API directly.
  */
-export declare function stringifyWithBigInt(data: any): string;
+export interface JsonResponse<TData> extends Response {
+    json: () => Promise<TData>;
+}
 /**
- * Parse JSON and restore BigInt values
- * Objects with __type: 'bigint' are converted back to BigInt
+ * @deprecated Use [`Response.json`](https://developer.mozilla.org/en-US/docs/Web/API/Response/json_static) from the standard Web API directly.
  */
-export declare function parseWithBigInt(json: string): any;
+export declare function json<TData>(payload: TData, init?: ResponseInit): JsonResponse<TData>;

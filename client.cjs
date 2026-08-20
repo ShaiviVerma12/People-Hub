@@ -1,12 +1,7 @@
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-const require_RouterClient = require("./RouterClient.cjs");
-exports.RouterClient = require_RouterClient.RouterClient;
-var _tanstack_router_core_ssr_client = require("@tanstack/router-core/ssr/client");
-Object.keys(_tanstack_router_core_ssr_client).forEach(function(k) {
-	if (k !== "default" && !Object.prototype.hasOwnProperty.call(exports, k)) Object.defineProperty(exports, k, {
-		enumerable: true,
-		get: function() {
-			return _tanstack_router_core_ssr_client[k];
-		}
-	});
-});
+const require_load_client = require("../load-client.cjs");
+const require_headers = require("./headers.cjs");
+const require_json = require("./json.cjs");
+exports.hydrate = require_load_client.hydrate;
+exports.json = require_json.json;
+exports.mergeHeaders = require_headers.mergeHeaders;

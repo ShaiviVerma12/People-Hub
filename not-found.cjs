@@ -1,49 +1,26 @@
-const require_runtime = require("./_virtual/_rolldown/runtime.cjs");
-const require_CatchBoundary = require("./CatchBoundary.cjs");
-const require_useRouter = require("./useRouter.cjs");
-let _tanstack_router_core = require("@tanstack/router-core");
-let react = require("react");
-react = require_runtime.__toESM(react, 1);
-let _tanstack_router_core_isServer = require("@tanstack/router-core/isServer");
-let react_jsx_runtime = require("react/jsx-runtime");
-let _tanstack_react_store = require("@tanstack/react-store");
-//#region src/not-found.tsx
-function CatchNotFound(props) {
-	const router = require_useRouter.useRouter();
-	if (_tanstack_router_core_isServer.isServer ?? router.isServer) {
-		const resetKey = `not-found-${router.stores.location.get().pathname}-${router.stores.status.get()}`;
-		return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(require_CatchBoundary.CatchBoundary, {
-			getResetKey: () => resetKey,
-			onCatch: (error, errorInfo) => {
-				if ((0, _tanstack_router_core.isNotFound)(error)) props.onCatch?.(error, errorInfo);
-				else throw error;
-			},
-			errorComponent: ({ error }) => {
-				if ((0, _tanstack_router_core.isNotFound)(error)) return props.fallback?.(error);
-				else throw error;
-			},
-			children: props.children
-		});
-	}
-	const resetKey = `not-found-${(0, _tanstack_react_store.useStore)(router.stores.location, (location) => location.pathname)}-${(0, _tanstack_react_store.useStore)(router.stores.status, (status) => status)}`;
-	return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(require_CatchBoundary.CatchBoundary, {
-		getResetKey: () => resetKey,
-		onCatch: (error, errorInfo) => {
-			if ((0, _tanstack_router_core.isNotFound)(error)) props.onCatch?.(error, errorInfo);
-			else throw error;
-		},
-		errorComponent: ({ error }) => {
-			if ((0, _tanstack_router_core.isNotFound)(error)) return props.fallback?.(error);
-			else throw error;
-		},
-		children: props.children
-	});
+//#region src/not-found.ts
+/**
+* Create a not-found error object recognized by TanStack Router.
+*
+* Throw this from loaders/actions to trigger the nearest `notFoundComponent`.
+* Use `routeId` to target a specific route's not-found boundary. If `throw`
+* is true, the error is thrown instead of returned.
+*
+* @param options Optional settings including `routeId`, `headers`, and `throw`.
+* @returns A not-found error object that can be thrown or returned.
+* @link https://tanstack.com/router/latest/docs/router/framework/react/api/router/notFoundFunction
+*/
+function notFound(options = {}) {
+	options.isNotFound = true;
+	if (options.throw) throw options;
+	return options;
 }
-function DefaultGlobalNotFound() {
-	return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: "Not Found" });
+/** Determine if a value is a TanStack Router not-found error. */
+function isNotFound(obj) {
+	return obj?.isNotFound === true;
 }
 //#endregion
-exports.CatchNotFound = CatchNotFound;
-exports.DefaultGlobalNotFound = DefaultGlobalNotFound;
+exports.isNotFound = isNotFound;
+exports.notFound = notFound;
 
 //# sourceMappingURL=not-found.cjs.map

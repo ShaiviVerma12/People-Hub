@@ -1,20 +1,22 @@
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-const require_RouterServer = require("./RouterServer.cjs");
-const require_renderRouterToString = require("./renderRouterToString.cjs");
-const require_defaultRenderHandler = require("./defaultRenderHandler.cjs");
-const require_renderRouterToStream = require("./renderRouterToStream.cjs");
-const require_defaultStreamHandler = require("./defaultStreamHandler.cjs");
-exports.RouterServer = require_RouterServer.RouterServer;
-exports.defaultRenderHandler = require_defaultRenderHandler.defaultRenderHandler;
-exports.defaultStreamHandler = require_defaultStreamHandler.defaultStreamHandler;
-exports.renderRouterToStream = require_renderRouterToStream.renderRouterToStream;
-exports.renderRouterToString = require_renderRouterToString.renderRouterToString;
-var _tanstack_router_core_ssr_server = require("@tanstack/router-core/ssr/server");
-Object.keys(_tanstack_router_core_ssr_server).forEach(function(k) {
-	if (k !== "default" && !Object.prototype.hasOwnProperty.call(exports, k)) Object.defineProperty(exports, k, {
-		enumerable: true,
-		get: function() {
-			return _tanstack_router_core_ssr_server[k];
-		}
-	});
-});
+const require_ssr_server = require("./ssr-server.cjs");
+const require_handlerCallback = require("./handlerCallback.cjs");
+const require_createRequestHandler = require("./createRequestHandler.cjs");
+const require_transformStreamWithRouter = require("./transformStreamWithRouter.cjs");
+exports.attachRouterServerSsrUtils = require_ssr_server.attachRouterServerSsrUtils;
+exports.bindSsrResponseToRequest = require_handlerCallback.bindSsrResponseToRequest;
+exports.createRequestHandler = require_createRequestHandler.createRequestHandler;
+exports.createSsrStreamResponse = require_handlerCallback.createSsrStreamResponse;
+exports.defineHandlerCallback = require_handlerCallback.defineHandlerCallback;
+exports.disposeSsrResponse = require_handlerCallback.disposeSsrResponse;
+exports.disposeSsrResponseDetached = require_handlerCallback.disposeSsrResponseDetached;
+exports.getNormalizedURL = require_ssr_server.getNormalizedURL;
+exports.getOrigin = require_ssr_server.getOrigin;
+exports.isSsrResponse = require_handlerCallback.isSsrResponse;
+exports.normalizeSsrResponse = require_handlerCallback.normalizeSsrResponse;
+exports.replaceSsrResponse = require_handlerCallback.replaceSsrResponse;
+exports.stripSsrResponseBody = require_handlerCallback.stripSsrResponseBody;
+exports.transformPipeableStreamWithRouter = require_transformStreamWithRouter.transformPipeableStreamWithRouter;
+exports.transformReadableStreamWithRouter = require_transformStreamWithRouter.transformReadableStreamWithRouter;
+exports.transformStreamWithRouter = require_transformStreamWithRouter.transformStreamWithRouter;
+exports.waitForRequest = require_createRequestHandler.waitForRequest;
