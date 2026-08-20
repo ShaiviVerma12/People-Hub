@@ -1,3 +1,3 @@
-# `react-slot`
+# `react-use-layout-effect`
 
-View docs [here](https://radix-ui.com/primitives/docs/utilities/slot).
+This is an internal utility, not intended for public usage.
