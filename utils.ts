@@ -1,519 +1,130 @@
-import { timeoutManager } from './timeoutManager'
-import type {
-  DefaultError,
-  FetchStatus,
-  MutationKey,
-  MutationStatus,
-  QueryBooleanOption,
-  QueryFunction,
-  QueryKey,
-  QueryOptions,
-  StaleTime,
-  StaleTimeFunction,
-} from './types'
-import type { Mutation } from './mutation'
-import type { FetchOptions, Query } from './query'
+'use client'
+import * as React from 'react'
+import { isServer } from '@tanstack/router-core/isServer'
 
-// TYPES
+// Safe version of React.use() that will not cause compilation errors against
+// React 18 with Webpack, which statically analyzes imports and fails when it
+// sees React.use referenced (since 'use' is not exported from React 18).
+// This uses a dynamic string lookup to avoid the static analysis.
+// eslint-disable-next-line prefer-const -- Must be `let` to prevent bundler constant-folding
+let REACT_USE = 'use'
 
-type DropLast<T extends ReadonlyArray<unknown>> = T extends readonly [
-  ...infer R,
-  unknown,
-]
-  ? readonly [...R]
-  : never
-
-type TuplePrefixes<T extends ReadonlyArray<unknown>> = T extends readonly []
-  ? readonly []
-  : TuplePrefixes<DropLast<T>> | T
-
-export interface QueryFilters<TQueryKey extends QueryKey = QueryKey> {
-  /**
-   * Filter to active queries, inactive queries or all queries
-   */
-  type?: QueryTypeFilter
-  /**
-   * Match query key exactly
-   */
-  exact?: boolean
-  /**
-   * Include queries matching this predicate function
-   */
-  predicate?: (query: Query) => boolean
-  /**
-   * Include queries matching this query key
-   */
-  queryKey?: TQueryKey | TuplePrefixes<TQueryKey>
-  /**
-   * Include or exclude stale queries
-   */
-  stale?: boolean
-  /**
-   * Include queries matching their fetchStatus
-   */
-  fetchStatus?: FetchStatus
-}
-
-export interface MutationFilters<
-  TData = unknown,
-  TError = DefaultError,
-  TVariables = unknown,
-  TOnMutateResult = unknown,
-> {
-  /**
-   * Match mutation key exactly
-   */
-  exact?: boolean
-  /**
-   * Include mutations matching this predicate function
-   */
-  predicate?: (
-    mutation: Mutation<TData, TError, TVariables, TOnMutateResult>,
-  ) => boolean
-  /**
-   * Include mutations matching this mutation key
-   */
-  mutationKey?: TuplePrefixes<MutationKey>
-  /**
-   * Filter by mutation status
-   */
-  status?: MutationStatus
-}
-
-export type Updater<TInput, TOutput> = TOutput | ((input: TInput) => TOutput)
-
-export type QueryTypeFilter = 'all' | 'active' | 'inactive'
-
-// UTILS
-
-/** @deprecated
- * use `environmentManager.isServer()` instead.
+/**
+ * React.use if available (React 19+), undefined otherwise.
+ * Use dynamic lookup to avoid Webpack compilation errors with React 18.
  */
-export const isServer = typeof window === 'undefined' || 'Deno' in globalThis
+export const reactUse:
+  | (<T>(usable: Promise<T> | React.Context<T>) => T)
+  | undefined = (React as any)[REACT_USE]
 
-export function noop(): void
-export function noop(): undefined
-export function noop() {}
+export function useStableCallback<T extends (...args: Array<any>) => any>(
+  fn: T,
+): T {
+  const fnRef = React.useRef(fn)
+  fnRef.current = fn
 
-export function functionalUpdate<TInput, TOutput>(
-  updater: Updater<TInput, TOutput>,
-  input: TInput,
-): TOutput {
-  return typeof updater === 'function'
-    ? (updater as (_: TInput) => TOutput)(input)
-    : updater
+  const ref = React.useRef((...args: Array<any>) => fnRef.current(...args))
+  return ref.current as T
 }
 
-export function isValidTimeout(value: unknown): value is number {
-  return typeof value === 'number' && value >= 0 && value !== Infinity
-}
+export const useLayoutEffect =
+  (isServer ?? typeof window === 'undefined')
+    ? React.useEffect
+    : React.useLayoutEffect
 
-export function timeUntilStale(updatedAt: number, staleTime?: number): number {
-  return Math.max(updatedAt + (staleTime || 0) - Date.now(), 0)
-}
+/**
+ * Taken from https://www.developerway.com/posts/implementing-advanced-use-previous-hook#part3
+ */
+export function usePrevious<T>(value: T): T | null {
+  // initialise the ref with previous and current values
+  const ref = React.useRef<{ value: T; prev: T | null }>({
+    value: value,
+    prev: null,
+  })
 
-export function resolveStaleTime<
-  TQueryFnData = unknown,
-  TError = DefaultError,
-  TData = TQueryFnData,
-  TQueryKey extends QueryKey = QueryKey,
->(
-  staleTime:
-    | undefined
-    | StaleTimeFunction<TQueryFnData, TError, TData, TQueryKey>,
-  query: Query<TQueryFnData, TError, TData, TQueryKey>,
-): StaleTime | undefined {
-  return typeof staleTime === 'function' ? staleTime(query) : staleTime
-}
+  const current = ref.current.value
 
-export function resolveQueryBoolean<
-  TQueryFnData = unknown,
-  TError = DefaultError,
-  TData = TQueryFnData,
-  TQueryKey extends QueryKey = QueryKey,
->(
-  option:
-    | undefined
-    | QueryBooleanOption<TQueryFnData, TError, TData, TQueryKey>,
-  query: Query<TQueryFnData, TError, TData, TQueryKey>,
-): boolean | undefined {
-  return typeof option === 'function' ? option(query) : option
-}
-
-export function matchQuery(
-  filters: QueryFilters,
-  query: Query<any, any, any, any>,
-): boolean {
-  const {
-    type = 'all',
-    exact,
-    fetchStatus,
-    predicate,
-    queryKey,
-    stale,
-  } = filters
-
-  if (queryKey) {
-    if (exact) {
-      if (query.queryHash !== hashQueryKeyByOptions(queryKey, query.options)) {
-        return false
-      }
-    } else if (!partialMatchKey(query.queryKey, queryKey)) {
-      return false
+  // if the value passed into hook doesn't match what we store as "current"
+  // move the "current" to the "previous"
+  // and store the passed value as "current"
+  if (value !== current) {
+    ref.current = {
+      value: value,
+      prev: current,
     }
   }
 
-  if (type !== 'all') {
-    const isActive = query.isActive()
-    if (type === 'active' && !isActive) {
-      return false
-    }
-    if (type === 'inactive' && isActive) {
-      return false
-    }
-  }
-
-  if (typeof stale === 'boolean' && query.isStale() !== stale) {
-    return false
-  }
-
-  if (fetchStatus && fetchStatus !== query.state.fetchStatus) {
-    return false
-  }
-
-  if (predicate && !predicate(query)) {
-    return false
-  }
-
-  return true
-}
-
-export function matchMutation(
-  filters: MutationFilters,
-  mutation: Mutation<any, any>,
-): boolean {
-  const { exact, status, predicate, mutationKey } = filters
-  if (mutationKey) {
-    if (!mutation.options.mutationKey) {
-      return false
-    }
-    if (exact) {
-      if (hashKey(mutation.options.mutationKey) !== hashKey(mutationKey)) {
-        return false
-      }
-    } else if (!partialMatchKey(mutation.options.mutationKey, mutationKey)) {
-      return false
-    }
-  }
-
-  if (status && mutation.state.status !== status) {
-    return false
-  }
-
-  if (predicate && !predicate(mutation)) {
-    return false
-  }
-
-  return true
-}
-
-export function hashQueryKeyByOptions<TQueryKey extends QueryKey = QueryKey>(
-  queryKey: TQueryKey,
-  options?: Pick<QueryOptions<any, any, any, any>, 'queryKeyHashFn'>,
-): string {
-  const hashFn = options?.queryKeyHashFn || hashKey
-  return hashFn(queryKey)
+  // return the previous value only
+  return ref.current.prev
 }
 
 /**
- * Default query & mutation keys hash function.
- * Hashes the value into a stable hash.
+ * React hook to wrap `IntersectionObserver`.
+ *
+ * This hook will create an `IntersectionObserver` and observe the ref passed to it.
+ *
+ * When the intersection changes, the callback will be called with the `IntersectionObserverEntry`.
+ *
+ * @param ref - The ref to observe
+ * @param intersectionObserverOptions - The options to pass to the IntersectionObserver
+ * @param disabled - Whether observation is disabled
+ * @param callback - The callback to call when the intersection changes
+ * @returns The IntersectionObserver instance
+ * @example
+ * ```tsx
+ * const MyComponent = () => {
+ * const ref = React.useRef<HTMLDivElement>(null)
+ * useIntersectionObserver(
+ *  ref,
+ *  (entry) => { doSomething(entry) },
+ *  { rootMargin: '10px' },
+ *  false
+ * )
+ * return <div ref={ref} />
+ * ```
  */
-export function hashKey(queryKey: QueryKey | MutationKey): string {
-  return JSON.stringify(queryKey, (_, val) =>
-    isPlainObject(val)
-      ? Object.keys(val)
-          .sort()
-          .reduce((result, key) => {
-            result[key] = val[key]
-            return result
-          }, {} as any)
-      : val,
-  )
-}
-
-/**
- * Checks if key `b` partially matches with key `a`.
- */
-export function partialMatchKey(a: QueryKey, b: QueryKey): boolean
-export function partialMatchKey(a: any, b: any): boolean {
-  if (a === b) {
-    return true
-  }
-
-  if (typeof a !== typeof b) {
-    return false
-  }
-
-  if (a && b && typeof a === 'object' && typeof b === 'object') {
-    if (Array.isArray(a) && Array.isArray(b)) {
-      for (let i = 0; i < b.length; i++) {
-        if (!partialMatchKey(a[i], b[i])) {
-          return false
-        }
-      }
-      return true
-    }
-
-    const bKeys = Object.keys(b)
-    for (const key of bKeys) {
-      if (!partialMatchKey(a[key], b[key])) {
-        return false
-      }
-    }
-    return true
-  }
-
-  return false
-}
-
-const hasOwn = Object.prototype.hasOwnProperty
-
-/**
- * This function returns `a` if `b` is deeply equal.
- * If not, it will replace any deeply equal children of `b` with those of `a`.
- * This can be used for structural sharing between JSON values for example.
- */
-export function replaceEqualDeep<T>(a: unknown, b: T, depth?: number): T
-export function replaceEqualDeep(a: any, b: any, depth = 0): any {
-  if (a === b) {
-    return a
-  }
-
-  if (depth > 500) return b
-
-  const array = isPlainArray(a) && isPlainArray(b)
-
-  if (!array && !(isPlainObject(a) && isPlainObject(b))) return b
-
-  const aItems = array ? a : Object.keys(a)
-  const aSize = aItems.length
-  const bItems = array ? b : Object.keys(b)
-  const bSize = bItems.length
-  const copy: any = array ? new Array(bSize) : {}
-
-  let equalItems = 0
-
-  for (let i = 0; i < bSize; i++) {
-    const key: any = array ? i : bItems[i]
-    const aItem = a[key]
-    const bItem = b[key]
-
-    if (aItem === bItem) {
-      copy[key] = aItem
-      if (array ? i < aSize : hasOwn.call(a, key)) equalItems++
-      continue
-    }
-
+export function useIntersectionObserver<T extends Element>(
+  ref: React.RefObject<T | null>,
+  callback: (entry: IntersectionObserverEntry | undefined) => void,
+  intersectionObserverOptions: IntersectionObserverInit = {},
+  disabled?: boolean,
+) {
+  React.useEffect(() => {
     if (
-      aItem === null ||
-      bItem === null ||
-      typeof aItem !== 'object' ||
-      typeof bItem !== 'object'
+      !ref.current ||
+      disabled ||
+      typeof IntersectionObserver !== 'function'
     ) {
-      copy[key] = bItem
-      continue
+      return
     }
 
-    const v = replaceEqualDeep(aItem, bItem, depth + 1)
-    copy[key] = v
-    if (v === aItem) equalItems++
-  }
+    const observer = new IntersectionObserver(([entry]) => {
+      callback(entry)
+    }, intersectionObserverOptions)
 
-  return aSize === bSize && equalItems === aSize ? a : copy
+    observer.observe(ref.current)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [callback, disabled, intersectionObserverOptions, ref])
 }
 
 /**
- * Shallow compare objects.
+ * React hook to take a `React.ForwardedRef` and returns a `ref` that can be used on a DOM element.
+ *
+ * @param ref - The forwarded ref
+ * @returns The inner ref returned by `useRef`
+ * @example
+ * ```tsx
+ * const MyComponent = React.forwardRef((props, ref) => {
+ *  const innerRef = useForwardedRef(ref)
+ *  return <div ref={innerRef} />
+ * })
+ * ```
  */
-export function shallowEqualObjects<T extends Record<string, any>>(
-  a: T,
-  b: T | undefined,
-): boolean {
-  if (!b || Object.keys(a).length !== Object.keys(b).length) {
-    return false
-  }
-
-  for (const key in a) {
-    if (a[key] !== b[key]) {
-      return false
-    }
-  }
-
-  return true
-}
-
-export function isPlainArray(value: unknown): value is Array<unknown> {
-  return Array.isArray(value) && value.length === Object.keys(value).length
-}
-
-// Copied from: https://github.com/jonschlinkert/is-plain-object
-export function isPlainObject(o: any): o is Record<PropertyKey, unknown> {
-  if (!hasObjectPrototype(o)) {
-    return false
-  }
-
-  // If has no constructor
-  const ctor = o.constructor
-  if (ctor === undefined) {
-    return true
-  }
-
-  // If has modified prototype
-  const prot = ctor.prototype
-  if (!hasObjectPrototype(prot)) {
-    return false
-  }
-
-  // If constructor does not have an Object-specific method
-  if (!prot.hasOwnProperty('isPrototypeOf')) {
-    return false
-  }
-
-  // Handles Objects created by Object.create(<arbitrary prototype>)
-  if (Object.getPrototypeOf(o) !== Object.prototype) {
-    return false
-  }
-
-  // Most likely a plain Object
-  return true
-}
-
-function hasObjectPrototype(o: any): boolean {
-  return Object.prototype.toString.call(o) === '[object Object]'
-}
-
-export function sleep(timeout: number): Promise<void> {
-  return new Promise((resolve) => {
-    timeoutManager.setTimeout(resolve, timeout)
-  })
-}
-
-export function replaceData<
-  TData,
-  TOptions extends QueryOptions<any, any, any, any>,
->(prevData: TData | undefined, data: TData, options: TOptions): TData {
-  if (typeof options.structuralSharing === 'function') {
-    return options.structuralSharing(prevData, data) as TData
-  } else if (options.structuralSharing !== false) {
-    if (process.env.NODE_ENV !== 'production') {
-      try {
-        return replaceEqualDeep(prevData, data)
-      } catch (error) {
-        console.error(
-          `Structural sharing requires data to be JSON serializable. To fix this, turn off structuralSharing or return JSON-serializable data from your queryFn. [${options.queryHash}]: ${error}`,
-        )
-
-        // Prevent the replaceEqualDeep from being called again down below.
-        throw error
-      }
-    }
-    // Structurally share data between prev and new data if needed
-    return replaceEqualDeep(prevData, data)
-  }
-  return data
-}
-
-export function keepPreviousData<T>(
-  previousData: T | undefined,
-): T | undefined {
-  return previousData
-}
-
-export function addToEnd<T>(items: Array<T>, item: T, max = 0): Array<T> {
-  const newItems = [...items, item]
-  return max && newItems.length > max ? newItems.slice(1) : newItems
-}
-
-export function addToStart<T>(items: Array<T>, item: T, max = 0): Array<T> {
-  const newItems = [item, ...items]
-  return max && newItems.length > max ? newItems.slice(0, -1) : newItems
-}
-
-export const skipToken = Symbol()
-export type SkipToken = typeof skipToken
-
-export function ensureQueryFn<
-  TQueryFnData = unknown,
-  TQueryKey extends QueryKey = QueryKey,
->(
-  options: {
-    queryFn?: QueryFunction<TQueryFnData, TQueryKey> | SkipToken
-    queryHash?: string
-  },
-  fetchOptions?: FetchOptions<TQueryFnData>,
-): QueryFunction<TQueryFnData, TQueryKey> {
-  if (process.env.NODE_ENV !== 'production') {
-    if (options.queryFn === skipToken) {
-      console.error(
-        `Attempted to invoke queryFn when set to skipToken. This is likely a configuration error. Query hash: '${options.queryHash}'`,
-      )
-    }
-  }
-
-  // if we attempt to retry a fetch that was triggered from an initialPromise
-  // when we don't have a queryFn yet, we can't retry, so we just return the already rejected initialPromise
-  // if an observer has already mounted, we will be able to retry with that queryFn
-  if (!options.queryFn && fetchOptions?.initialPromise) {
-    return () => fetchOptions.initialPromise!
-  }
-
-  if (!options.queryFn || options.queryFn === skipToken) {
-    return () =>
-      Promise.reject(new Error(`Missing queryFn: '${options.queryHash}'`))
-  }
-
-  return options.queryFn
-}
-
-export function shouldThrowError<T extends (...args: Array<any>) => boolean>(
-  throwOnError: boolean | T | undefined,
-  params: Parameters<T>,
-): boolean {
-  // Allow throwOnError function to override throwing behavior on a per-error basis
-  if (typeof throwOnError === 'function') {
-    return throwOnError(...params)
-  }
-
-  return !!throwOnError
-}
-
-export function addConsumeAwareSignal<T>(
-  object: T,
-  getSignal: () => AbortSignal,
-  onCancelled: VoidFunction,
-): T & { signal: AbortSignal } {
-  let consumed = false
-  let signal: AbortSignal | undefined
-
-  Object.defineProperty(object, 'signal', {
-    enumerable: true,
-    get: () => {
-      signal ??= getSignal()
-      if (consumed) {
-        return signal
-      }
-
-      consumed = true
-      if (signal.aborted) {
-        onCancelled()
-      } else {
-        signal.addEventListener('abort', onCancelled, { once: true })
-      }
-
-      return signal
-    },
-  })
-
-  return object as T & { signal: AbortSignal }
+export function useForwardedRef<T>(ref?: React.ForwardedRef<T>) {
+  const innerRef = React.useRef<T>(null)
+  React.useImperativeHandle(ref, () => innerRef.current!, [])
+  return innerRef
 }

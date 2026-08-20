@@ -1,312 +1,436 @@
 ---
-name: devtools-vite-plugin
-description: >
-  Configure @tanstack/devtools-vite for source inspection (data-tsd-source,
-  inspectHotkey, ignore patterns), console piping (client-to-server,
-  server-to-client, levels), enhanced logging, server event bus (port, host,
-  HTTPS), production stripping (removeDevtoolsOnBuild), editor integration
-  (launch-editor, custom editor.open). Must be FIRST plugin in Vite config.
-  Vite ^6 || ^7 only.
-type: core
-library: tanstack-devtools
-library_version: '0.10.12'
+name: migrate-from-nextjs
+description: >-
+  Step-by-step migration from Next.js App Router to TanStack Start:
+  route definition conversion, API mapping, server function
+  conversion from Server Actions, middleware conversion, data
+  fetching pattern changes.
+metadata:
+  type: lifecycle
+  library: tanstack-start
+  library_version: '1.168.32'
+requires:
+  - start-core
+  - react-start
 sources:
-  - 'TanStack/devtools:docs/vite-plugin.md'
-  - 'TanStack/devtools:docs/source-inspector.md'
-  - 'TanStack/devtools:packages/devtools-vite/src/plugin.ts'
+  - TanStack/router:docs/start/framework/react/guide/server-functions.md
+  - TanStack/router:docs/start/framework/react/guide/middleware.md
+  - TanStack/router:docs/start/framework/react/guide/execution-model.md
 ---
 
-Configure @tanstack/devtools-vite -- the Vite plugin that enhances TanStack Devtools with source inspection, console piping, enhanced logging, a server event bus, production stripping, editor integration, and a plugin marketplace. The plugin returns an array of sub-plugins, all using `enforce: 'pre'`, so it must be the FIRST plugin in the Vite config.
+# Migrate from Next.js App Router to TanStack Start
 
-## Installation and Basic Setup
+This is a step-by-step migration checklist. Complete tasks in order.
+
+> **CRITICAL**: TanStack Start is isomorphic by default. ALL code runs in both environments unless you use `createServerFn`. This is the opposite of Next.js Server Components, where code is server-only by default.
+
+> **CRITICAL**: TanStack Start uses `createServerFn`, NOT `"use server"` directives. Do not carry over any `"use server"` or `"use client"` directives.
+
+> **CRITICAL**: Types are FULLY INFERRED in TanStack Router/Start. Never cast, never annotate inferred values.
+
+## Pre-Migration
+
+- [ ] **Create a migration branch**
+
+```bash
+git checkout -b migrate-to-tanstack-start
+```
+
+- [ ] **Install TanStack Start**
+
+```bash
+npm i @tanstack/react-start @tanstack/react-router
+npm i -D vite @vitejs/plugin-react
+```
+
+- [ ] **Remove Next.js**
+
+```bash
+npm uninstall next @next/font @next/image
+```
+
+## Concept Mapping
+
+| Next.js App Router               | TanStack Start                                                            |
+| -------------------------------- | ------------------------------------------------------------------------- |
+| `app/page.tsx`                   | `src/routes/index.tsx`                                                    |
+| `app/layout.tsx`                 | `src/routes/__root.tsx`                                                   |
+| `app/posts/[id]/page.tsx`        | `src/routes/posts/$postId.tsx`                                            |
+| `app/api/users/route.ts`         | `src/routes/api/users.ts` (server property)                               |
+| `"use server"` + Server Actions  | `createServerFn()`                                                        |
+| `"use client"`                   | Not needed (everything is isomorphic)                                     |
+| Server Components (default)      | All components are isomorphic; use `createServerFn` for server-only logic |
+| `next/navigation` `useRouter`    | `useRouter()` from `@tanstack/react-router`                               |
+| `next/link` `Link`               | `<Link>` from `@tanstack/react-router`                                    |
+| `next/head` or `metadata` export | `head` property on route                                                  |
+| `middleware.ts` (edge)           | `createMiddleware()` in `src/start.ts`                                    |
+| `next.config.js`                 | `vite.config.ts` with `tanstackStart()`                                   |
+| `generateStaticParams`           | `prerender` config in `vite.config.ts`                                    |
+
+## Step 1: Vite Configuration
+
+Replace `next.config.js` with:
 
 ```ts
 // vite.config.ts
-import { devtools } from '@tanstack/devtools-vite'
+import { defineConfig } from 'vite'
+import { tanstackStart } from '@tanstack/react-start/plugin/vite'
+import viteReact from '@vitejs/plugin-react'
 
-export default {
+export default defineConfig({
   plugins: [
-    devtools(),
-    // ... other plugins AFTER devtools
+    tanstackStart(), // MUST come before react()
+    viteReact(),
   ],
+})
+```
+
+Update `package.json`:
+
+```json
+{
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "start": "node .output/server/index.mjs"
+  }
 }
 ```
 
-Install as a dev dependency:
+## Step 2: Router Factory
 
-```sh
-pnpm add -D @tanstack/devtools-vite
+```tsx
+// src/router.tsx
+import { createRouter } from '@tanstack/react-router'
+import { routeTree } from './routeTree.gen'
+
+export function getRouter() {
+  const router = createRouter({
+    routeTree,
+    scrollRestoration: true,
+  })
+  return router
+}
 ```
 
-There is also a `defineDevtoolsConfig` helper for type-safe config objects:
+## Step 3: Convert Layout → Root Route
 
-```ts
-import { devtools, defineDevtoolsConfig } from '@tanstack/devtools-vite'
+Next.js:
 
-const config = defineDevtoolsConfig({
-  // fully typed options
+```tsx
+// app/layout.tsx
+export const metadata = { title: 'My App' }
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+TanStack Start:
+
+```tsx
+// src/routes/__root.tsx
+import type { ReactNode } from 'react'
+import {
+  Outlet,
+  createRootRoute,
+  HeadContent,
+  Scripts,
+} from '@tanstack/react-router'
+
+export const Route = createRootRoute({
+  head: () => ({
+    meta: [
+      { charSet: 'utf-8' },
+      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+      { title: 'My App' },
+    ],
+  }),
+  component: RootComponent,
 })
 
-export default {
-  plugins: [devtools(config)],
+function RootComponent() {
+  return (
+    <html>
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        <Outlet />
+        <Scripts />
+      </body>
+    </html>
+  )
 }
 ```
 
-## Exports
+## Step 4: Convert Pages → File Routes
 
-From `packages/devtools-vite/src/index.ts`:
+Next.js:
 
-- `devtools` -- main plugin factory, returns `Array<Plugin>`
-- `defineDevtoolsConfig` -- identity function for type-safe config
-- `TanStackDevtoolsViteConfig` -- config type (re-exported)
-- `ConsoleLevel` -- `'log' | 'warn' | 'error' | 'info' | 'debug'`
+```tsx
+// app/posts/[id]/page.tsx
+export default function PostPage({ params }: { params: { id: string } }) {
+  // ...
+}
+```
 
-## Architecture: Sub-Plugins
+TanStack Start:
 
-`devtools()` returns an array of Vite plugins. Each has `enforce: 'pre'` and only activates when its conditions are met (dev mode, serve command, etc.).
+```tsx
+// src/routes/posts/$postId.tsx
+import { createFileRoute } from '@tanstack/react-router'
 
-| Sub-plugin name                               | What it does                                                                                                       | When active                                                |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
-| `@tanstack/devtools:inject-source`            | AST transform adding `data-tsd-source` attrs to JSX                                                                | dev mode + `injectSource.enabled`                          |
-| `@tanstack/devtools:config`                   | Reserved for future config modifications                                                                           | serve command only                                         |
-| `@tanstack/devtools:custom-server`            | Starts ServerEventBus, registers middleware for open-source/console-pipe endpoints                                 | dev mode                                                   |
-| `@tanstack/devtools:remove-devtools-on-build` | Strips devtools imports/JSX from production bundles                                                                | build command or production mode + `removeDevtoolsOnBuild` |
-| `@tanstack/devtools:event-client-setup`       | Marketplace: listens for install/add-plugin events via devtoolsEventClient                                         | dev mode + serve + not CI                                  |
-| `@tanstack/devtools:console-pipe-transform`   | Injects runtime console-pipe code into entry files                                                                 | dev mode + serve + `consolePiping.enabled`                 |
-| `@tanstack/devtools:better-console-logs`      | AST transform prepending source location to `console.log`/`console.error`                                          | dev mode + `enhancedLogs.enabled`                          |
-| `@tanstack/devtools:inject-plugin`            | Detects which file imports TanStackDevtools (for marketplace injection)                                            | dev mode + serve                                           |
-| `@tanstack/devtools:connection-injection`     | Replaces `__TANSTACK_DEVTOOLS_PORT__`, `__TANSTACK_DEVTOOLS_HOST__`, `__TANSTACK_DEVTOOLS_PROTOCOL__` placeholders | dev mode + serve                                           |
+export const Route = createFileRoute('/posts/$postId')({
+  component: PostPage,
+})
 
-## Subsystem Details
+function PostPage() {
+  const { postId } = Route.useParams()
+  // ...
+}
+```
 
-### Source Injection
+Key differences:
 
-Adds `data-tsd-source="<relative-path>:<line>:<column>"` attributes to every JSX opening element via oxc-parser + MagicString. This powers the "Go to Source" feature -- hold the inspect hotkey (default: Shift+Alt+Ctrl/Meta), hover over elements, click to open in editor.
+- Dynamic segments use `$param` not `[param]`
+- Params accessed via `Route.useParams()` not component props
+- Route path in filename uses `.` or `/` separators
 
-**Key behaviors:**
+## Step 5: Convert Server Actions → Server Functions
 
-- Skips `<Fragment>` and `<React.Fragment>`
-- Skips elements where the component's props parameter is spread (`{...props}`) -- this is because injecting the attribute would be overwritten by the spread
-- Skips files matching `injectSource.ignore.files` patterns
-- Skips components matching `injectSource.ignore.components` patterns
-- Patterns can be strings (matched via picomatch) or RegExp
-- Transform filter excludes `node_modules`, `?raw` imports, `/dist/`, `/build/`
+Next.js:
 
-**Source files:** `packages/devtools-vite/src/inject-source.ts`, `packages/devtools-vite/src/matcher.ts`
+```tsx
+// app/actions.ts
+'use server'
+export async function createPost(formData: FormData) {
+  const title = formData.get('title') as string
+  await db.posts.create({ title })
+}
+```
+
+TanStack Start:
+
+```tsx
+// src/utils/posts.functions.ts
+import { createServerFn } from '@tanstack/react-start'
+
+export const createPost = createServerFn({ method: 'POST' })
+  .validator((data) => {
+    if (!(data instanceof FormData)) throw new Error('Expected FormData')
+    return { title: data.get('title')?.toString() || '' }
+  })
+  .handler(async ({ data }) => {
+    await db.posts.create({ title: data.title })
+    return { success: true }
+  })
+```
+
+## Step 6: Convert Data Fetching
+
+Next.js Server Component:
+
+```tsx
+// app/posts/page.tsx (Server Component — server-only by default)
+export default async function PostsPage() {
+  const posts = await db.posts.findMany()
+  return <PostList posts={posts} />
+}
+```
+
+TanStack Start:
+
+```tsx
+// src/routes/posts.tsx
+import { createFileRoute } from '@tanstack/react-router'
+import { createServerFn } from '@tanstack/react-start'
+
+const getPosts = createServerFn({ method: 'GET' }).handler(async () => {
+  return db.posts.findMany()
+})
+
+export const Route = createFileRoute('/posts')({
+  loader: () => getPosts(), // loader is isomorphic, getPosts runs on server
+  component: PostsPage,
+})
+
+function PostsPage() {
+  const posts = Route.useLoaderData()
+  return <PostList posts={posts} />
+}
+```
+
+## Step 7: Convert API Routes → Server Routes
+
+Next.js:
 
 ```ts
-devtools({
-  injectSource: {
-    enabled: true,
-    ignore: {
-      files: ['node_modules', /.*\.test\.(js|ts|jsx|tsx)$/],
-      components: ['InternalComponent', /.*Provider$/],
+// app/api/users/route.ts
+export async function GET() {
+  const users = await db.users.findMany()
+  return Response.json(users)
+}
+```
+
+TanStack Start:
+
+```ts
+// src/routes/api/users.ts
+import { createFileRoute } from '@tanstack/react-router'
+
+export const Route = createFileRoute('/api/users')({
+  server: {
+    handlers: {
+      GET: async () => {
+        const users = await db.users.findMany()
+        return Response.json(users)
+      },
     },
   },
 })
 ```
 
-### Console Piping
+## Step 8: Convert Navigation
 
-Bidirectional console piping between client and server. Injects runtime code (IIFE) into entry files that:
+Next.js:
 
-**Client side:**
+```tsx
+import Link from 'next/link'
+;<Link href={`/posts/${post.id}`}>View Post</Link>
+```
 
-1. Wraps `console[level]` to batch and POST entries to `/__tsd/console-pipe`
-2. Opens an EventSource on `/__tsd/console-pipe/sse` to receive server logs
-3. Server logs appear in browser console with a purple `[Server]` prefix
-4. Client logs appear in terminal with a cyan `[Client]` prefix
+TanStack Start:
 
-**Server side (SSR/Nitro):**
+```tsx
+import { Link } from '@tanstack/react-router'
+;<Link to="/posts/$postId" params={{ postId: post.id }}>
+  View Post
+</Link>
+```
 
-1. Wraps `console[level]` to batch and POST entries to `<viteServerUrl>/__tsd/console-pipe/server`
-2. These are then broadcast to all SSE clients
+Never interpolate params into the `to` string. Use `params` prop.
 
-**Entry file detection:** looks for `<html` tag, `StartClient`, `hydrateRoot`, `createRoot`, or `solid-js/web` + `render(` in code.
+## Step 9: Convert Middleware
 
-**Source files:** `packages/devtools-vite/src/virtual-console.ts`, `packages/devtools-vite/src/utils.ts` (middleware handlers)
+Next.js:
 
 ```ts
-devtools({
-  consolePiping: {
-    enabled: true,
-    levels: ['log', 'warn', 'error', 'info', 'debug'],
-  },
+// middleware.ts
+export function middleware(request: NextRequest) {
+  const token = request.cookies.get('session')
+  if (!token) return NextResponse.redirect(new URL('/login', request.url))
+}
+export const config = { matcher: ['/dashboard/:path*'] }
+```
+
+TanStack Start:
+
+```tsx
+// src/start.ts — must be manually created
+import { createStart, createMiddleware } from '@tanstack/react-start'
+import { redirect } from '@tanstack/react-router'
+
+const authMiddleware = createMiddleware().server(async ({ next, request }) => {
+  const cookie = request.headers.get('cookie')
+  if (!cookie?.includes('session=')) {
+    throw redirect({ to: '/login' })
+  }
+  return next()
+})
+
+export const startInstance = createStart(() => ({
+  requestMiddleware: [authMiddleware],
+}))
+```
+
+## Step 10: Convert Metadata/SEO
+
+Next.js:
+
+```tsx
+export const metadata = {
+  title: 'Post Title',
+  description: 'Post description',
+}
+```
+
+TanStack Start:
+
+```tsx
+export const Route = createFileRoute('/posts/$postId')({
+  loader: async ({ params }) => fetchPost(params.postId),
+  head: ({ loaderData }) => ({
+    meta: [
+      { title: loaderData.title },
+      { name: 'description', content: loaderData.excerpt },
+      { property: 'og:title', content: loaderData.title },
+    ],
+  }),
 })
 ```
 
-### Enhanced Logging
+## Post-Migration Checklist
 
-AST transform that prepends source location info to `console.log()` and `console.error()` calls. In the browser, this renders as a clickable "Go to Source" link. On the server, it shows `LOG <path>:<line>:<column>` in chalk colors.
-
-The transform inserts a spread of a conditional expression: `...(typeof window === 'undefined' ? serverLogMessage : browserLogMessage)` as the first argument of the console call.
-
-**Source file:** `packages/devtools-vite/src/enhance-logs.ts`
-
-```ts
-devtools({
-  enhancedLogs: {
-    enabled: true, // default
-  },
-})
-```
-
-### Production Stripping
-
-Removes all devtools code from production builds. The transform:
-
-1. Finds files importing from these packages: `@tanstack/react-devtools`, `@tanstack/preact-devtools`, `@tanstack/solid-devtools`, `@tanstack/vue-devtools`, `@tanstack/devtools`
-2. Removes the import declarations
-3. Removes the JSX elements that use the imported components
-4. Cleans up leftover imports that were only used inside the removed JSX (e.g., plugin panel components)
-
-Active when: `command !== 'serve'` OR `config.mode === 'production'` (handles hosting providers like Cloudflare/Netlify that may not use `build` command but set mode to production).
-
-**Source file:** `packages/devtools-vite/src/remove-devtools.ts`
-
-```ts
-devtools({
-  removeDevtoolsOnBuild: true, // default
-})
-```
-
-### Server Event Bus
-
-A WebSocket + SSE server for devtools-to-client communication. Managed by `@tanstack/devtools-event-bus/server`.
-
-**Key behaviors:**
-
-- Default port: 4206
-- On EADDRINUSE: falls back to OS-assigned port (port 0)
-- When Vite uses HTTPS: piggybacks on Vite's httpServer instead of creating a standalone one (shares TLS certificate)
-- Uses global variables (`__TANSTACK_DEVTOOLS_SERVER__`, etc.) to survive HMR without restarting
-- The actual port is injected into client code via `__TANSTACK_DEVTOOLS_PORT__` placeholder replacement
-
-**Source file:** `packages/event-bus/src/server/server.ts`
-
-```ts
-devtools({
-  eventBusConfig: {
-    port: 4206, // default
-    enabled: true, // default; set false for storybook/vitest
-    debug: false, // default; logs internal bus activity
-  },
-})
-```
-
-### Editor Integration
-
-Uses `launch-editor` to open source files in the editor. Default editor is VS Code. The `editor.open` callback receives `(path, lineNumber, columnNumber)` as strings.
-
-The open-source flow: browser requests `/__tsd/open-source?source=<encoded-path:line:col>` --> Vite middleware parses source param --> calls `editor.open`.
-
-Supported editors via launch-editor: VS Code, WebStorm, Sublime Text, Atom, and more. For unsupported editors, provide a custom `editor.open` function.
-
-**Source file:** `packages/devtools-vite/src/editor.ts`
-
-```ts
-devtools({
-  editor: {
-    name: 'Cursor',
-    open: async (path, lineNumber, columnNumber) => {
-      // Custom editor open logic
-      // path is the absolute file path
-      // lineNumber and columnNumber are strings or undefined
-    },
-  },
-})
-```
-
-### Plugin Marketplace
-
-When the dev server is running, listens for events via `devtoolsEventClient`:
-
-- `install-devtools` -- runs package manager install, then auto-injects plugin into devtools setup file
-- `add-plugin-to-devtools` -- injects plugin import and JSX/function call into the file containing `<TanStackDevtools>`
-- `bump-package-version` -- updates a package to a minimum version
-- `mounted` -- sends package.json and outdated deps to the UI
-
-Auto-detection of the devtools setup file: the `inject-plugin` sub-plugin scans transforms for files importing from `@tanstack/react-devtools`, `@tanstack/solid-devtools`, `@tanstack/vue-devtools`, etc., and stores the file ID.
-
-**Source files:** `packages/devtools-vite/src/inject-plugin.ts`, `packages/devtools-vite/src/package-manager.ts`
+- [ ] Remove all `"use server"` and `"use client"` directives
+- [ ] Remove `next.config.js` / `next.config.ts`
+- [ ] Remove `app/` directory (replaced by `src/routes/`)
+- [ ] Remove `middleware.ts` (replaced by `src/start.ts`)
+- [ ] Verify no `next/*` imports remain
+- [ ] Run `npm run dev` and check all routes
+- [ ] Verify server-only code is inside `createServerFn` (not bare in components/loaders)
+- [ ] Check that `<Scripts />` is in the root route `<body>`
 
 ## Common Mistakes
 
-### 1. Not placing devtools() first in Vite plugins (HIGH)
-
-All sub-plugins use `enforce: 'pre'`. They must transform code before framework plugins (React, Vue, Solid, etc.) process it. If devtools is not first, source injection and enhanced logs may silently fail because framework transforms remove the raw JSX before devtools can annotate it.
-
-```ts
-// WRONG
-export default {
-  plugins: [
-    react(),
-    devtools(), // too late -- react() already transformed JSX
-  ],
-}
-
-// CORRECT
-export default {
-  plugins: [devtools(), react()],
-}
-```
-
-### 2. Using devtools-vite with non-Vite bundlers (HIGH)
-
-`@tanstack/devtools-vite` has a peer dependency on `vite ^6.0.0 || ^7.0.0`. It uses Vite-specific APIs (`configureServer`, `handleHotUpdate`, `transform` with filter objects, `Plugin` type). It will not work with webpack, rspack, esbuild, or other bundlers. For non-Vite setups, use `@tanstack/devtools-event-bus` client directly without the Vite plugin.
-
-### 3. Expecting Vite plugin features in production (MEDIUM)
-
-Source injection, console piping, enhanced logging, the server event bus, and the marketplace only operate during development (`config.mode === 'development'` and `command === 'serve'`). In production builds, the only active sub-plugin is `remove-devtools-on-build` (which strips devtools code). Do not rely on any of these features being available at runtime in production.
-
-### 4. Source injection on spread-props elements (MEDIUM)
-
-The AST transform in `inject-source.ts` explicitly skips any JSX element that has a `{...props}` spread where `props` is the component's parameter name. This is intentional -- the spread would overwrite the injected `data-tsd-source` attribute. If source inspection doesn't work for a specific component, check if it spreads its props parameter.
+### 1. CRITICAL: Keeping Server Component mental model
 
 ```tsx
-// data-tsd-source will NOT be injected on <div> here
-const MyComponent = (props) => {
-  return <div {...props}>content</div>
+// WRONG — treating component as server-only (Next.js habit)
+function PostsPage() {
+  const posts = await db.posts.findMany() // fails on client
+  return <div>{posts.map(...)}</div>
 }
+
+// CORRECT — use server function + loader
+const getPosts = createServerFn({ method: 'GET' }).handler(async () => {
+  return db.posts.findMany()
+})
+
+export const Route = createFileRoute('/posts')({
+  loader: () => getPosts(),
+  component: PostsPage,
+})
 ```
 
-### 5. Event bus port conflict in multi-project setups (MEDIUM)
+### 2. CRITICAL: Using "use server" directive
 
-The default event bus port is 4206. When running multiple Vite dev servers concurrently (monorepo), the second server will hit EADDRINUSE. The event bus handles this by falling back to an OS-assigned port (port 0), and the actual port is injected via placeholder replacement. However, if you need predictable ports (e.g., for firewall rules), set different ports explicitly:
+```tsx
+// WRONG — "use server" is Next.js/React pattern
+'use server'
+export async function myAction() { ... }
 
-```ts
-// Project A
-devtools({ eventBusConfig: { port: 4206 } })
-
-// Project B
-devtools({ eventBusConfig: { port: 4207 } })
+// CORRECT — use createServerFn
+export const myAction = createServerFn({ method: 'POST' })
+  .handler(async () => { ... })
 ```
 
-## Internal Middleware Endpoints
+### 3. HIGH: Interpolating params into Link href
 
-These are registered on the Vite dev server (not the event bus server):
+```tsx
+// WRONG — Next.js pattern
+<Link to={`/posts/${post.id}`}>View</Link>
 
-| Endpoint                                    | Method | Purpose                                                   |
-| ------------------------------------------- | ------ | --------------------------------------------------------- |
-| `/__tsd/open-source?source=<path:line:col>` | GET    | Opens file in editor, returns HTML that closes the window |
-| `/__tsd/console-pipe`                       | POST   | Receives client console entries (batched JSON)            |
-| `/__tsd/console-pipe/server`                | POST   | Receives server-side console entries                      |
-| `/__tsd/console-pipe/sse`                   | GET    | SSE stream for broadcasting server logs to browser        |
+// CORRECT — TanStack Router pattern
+<Link to="/posts/$postId" params={{ postId: post.id }}>View</Link>
+```
 
 ## Cross-References
 
-- **devtools-app-setup** -- How to set up `<TanStackDevtools>` in your app (must be done before the Vite plugin provides value)
-- **devtools-production** -- Details on production stripping configuration and keeping devtools in production builds
-
-## Key Source Files
-
-- `packages/devtools-vite/src/plugin.ts` -- Main plugin factory with all sub-plugins and config type
-- `packages/devtools-vite/src/inject-source.ts` -- AST transform for data-tsd-source injection
-- `packages/devtools-vite/src/enhance-logs.ts` -- AST transform for enhanced console logs
-- `packages/devtools-vite/src/remove-devtools.ts` -- Production stripping transform
-- `packages/devtools-vite/src/virtual-console.ts` -- Console pipe runtime code generator
-- `packages/devtools-vite/src/editor.ts` -- Editor config type and launch-editor integration
-- `packages/devtools-vite/src/inject-plugin.ts` -- Marketplace plugin injection into devtools setup file
-- `packages/devtools-vite/src/utils.ts` -- Middleware request handling and helpers
-- `packages/devtools-vite/src/matcher.ts` -- Picomatch/RegExp pattern matcher
-- `packages/event-bus/src/server/server.ts` -- ServerEventBus implementation (WebSocket + SSE + EADDRINUSE fallback)
+- [react-start](../../react-start/SKILL.md) — full React Start setup
+- [start-core/server-functions](../../../../start-client-core/skills/start-core/server-functions/SKILL.md) — server function patterns
+- [start-core/execution-model](../../../../start-client-core/skills/start-core/execution-model/SKILL.md) — isomorphic execution
