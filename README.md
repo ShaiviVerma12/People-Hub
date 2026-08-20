@@ -1,2 +1,19 @@
-# People-Hub
-# People Hub — Employee Management System  Developed People Hub, an employee management system with a dashboard and CRUD functionality for adding, viewing, editing, and deleting employee records. Implemented form validation, REST API integration, database operations, and a user-friendly interface for efficient employee data management.
+# @babel/helper-globals
+
+> A collection of JavaScript globals for Babel internal usage
+
+See our website [@babel/helper-globals](https://babeljs.io/docs/babel-helper-globals) for more information.
+
+## Install
+
+Using npm:
+
+```sh
+npm install --save @babel/helper-globals
+```
+
+or using yarn:
+
+```sh
+yarn add @babel/helper-globals
+```
