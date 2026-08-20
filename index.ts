@@ -1,56 +1,34 @@
-/* istanbul ignore file */
-
-// Re-export core
-export * from '@tanstack/query-core'
-
-// React Query
-export * from './types'
-export { useQueries } from './useQueries'
-export type { QueriesResults, QueriesOptions } from './useQueries'
-export { useQuery } from './useQuery'
-export { useSuspenseQuery } from './useSuspenseQuery'
-export { useSuspenseInfiniteQuery } from './useSuspenseInfiniteQuery'
-export { useSuspenseQueries } from './useSuspenseQueries'
-export type {
-  SuspenseQueriesResults,
-  SuspenseQueriesOptions,
-} from './useSuspenseQueries'
-export { usePrefetchQuery } from './usePrefetchQuery'
-export { usePrefetchInfiniteQuery } from './usePrefetchInfiniteQuery'
-export { queryOptions } from './queryOptions'
-export type {
-  DefinedInitialDataOptions,
-  UndefinedInitialDataOptions,
-  UnusedSkipTokenOptions,
-} from './queryOptions'
-export { infiniteQueryOptions } from './infiniteQueryOptions'
-export type {
-  DefinedInitialDataInfiniteOptions,
-  UndefinedInitialDataInfiniteOptions,
-  UnusedSkipTokenInfiniteOptions,
-} from './infiniteQueryOptions'
+export { useServerFn } from './useServerFn'
+export * from '@tanstack/start-client-core'
+// Explicit re-exports shadow `export *` above so these public-API names are
+// registered on the namespace at link time (via Vite SSR's `defineExport`
+// at fileStartIndex), surviving the cold-start SSR cycle through user
+// middleware. See vitejs/vite#22491 / #22493. Trim list to genuine public
+// API only; internals fall through `export *` and are safe because they
+// aren't imported at top level in the cycle path.
 export {
-  QueryClientContext,
-  QueryClientProvider,
-  useQueryClient,
-} from './QueryClientProvider'
-export type { QueryClientProviderProps } from './QueryClientProvider'
-export type { QueryErrorResetBoundaryProps } from './QueryErrorResetBoundary'
-export { HydrationBoundary } from './HydrationBoundary'
-export type { HydrationBoundaryProps } from './HydrationBoundary'
+  createClientOnlyFn,
+  createCsrfMiddleware,
+  createIsomorphicFn,
+  createMiddleware,
+  createServerFn,
+  createServerOnlyFn,
+  createStart,
+} from '@tanstack/start-client-core'
+
+// Keep root `@tanstack/react-start` imports from evaluating the client barrel.
+// The barrel also exports `hydrateStart`, which imports the virtual client
+// entry. That virtual entry imports the user's router module, so route modules
+// that import the root package can be pulled back into the same graph and
+// create circular HMR updates. Re-exporting from the Hydrate-only subpath
+// preserves the public API without introducing that import edge.
+export { Hydrate } from '@tanstack/react-start-client/Hydrate'
 export type {
-  QueryErrorClearResetFunction,
-  QueryErrorIsResetFunction,
-  QueryErrorResetBoundaryFunction,
-  QueryErrorResetFunction,
-} from './QueryErrorResetBoundary'
-export {
-  QueryErrorResetBoundary,
-  useQueryErrorResetBoundary,
-} from './QueryErrorResetBoundary'
-export { useIsFetching } from './useIsFetching'
-export { useIsMutating, useMutationState } from './useMutationState'
-export { useMutation } from './useMutation'
-export { mutationOptions } from './mutationOptions'
-export { useInfiniteQuery } from './useInfiniteQuery'
-export { useIsRestoring, IsRestoringProvider } from './IsRestoringProvider'
+  HydrateOptions,
+  HydrateProps,
+  HydrationInteractionEvent,
+  HydrationInteractionEvents,
+  HydrationPrefetchStrategy,
+  HydrationStrategy,
+  HydrationWhen,
+} from '@tanstack/react-start-client/Hydrate'

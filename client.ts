@@ -1,2 +1,1 @@
-export { RouterClient } from './RouterClient'
-export * from '@tanstack/router-core/ssr/client'
+export { rscSerializationAdapter } from '@tanstack/react-start-rsc/serialization.client'

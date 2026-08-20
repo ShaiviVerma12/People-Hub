@@ -1,68 +1,167 @@
-import { reactStartDefaultEntryPaths, reactStartPluginDir } from "./shared.js";
+import { createRscCssCompilerTransforms } from "./rscCssTransform.js";
+import { fileURLToPath } from "node:url";
 import path from "pathe";
-import { START_ENVIRONMENT_NAMES, tanStackStartVite } from "@tanstack/start-plugin-core/vite";
-import { configureRsc, reactStartRscVitePlugin } from "@tanstack/react-start-rsc/plugin/vite";
+import { createVirtualModule } from "@tanstack/start-plugin-core/vite";
 //#region src/plugin/vite.ts
-var isInsideRouterMonoRepo = path.basename(path.resolve(reactStartPluginDir, "../../../../")) === "packages";
-function tanstackStart(options) {
-	const rscConfig = options?.rsc?.enabled ?? false ? configureRsc() : void 0;
-	let corePluginOpts = {
-		framework: "react",
-		defaultEntryPaths: reactStartDefaultEntryPaths,
-		providerEnvironmentName: START_ENVIRONMENT_NAMES.server,
-		ssrIsProvider: true,
-		ssrResolverStrategy: { type: "default" }
+var isClientEnvironment = (env) => env.config.consumer === "client";
+var RSC_HMR_VIRTUAL_ID = "virtual:tanstack-rsc-hmr";
+var RSC_RUNTIME_VIRTUAL_ID = "virtual:tanstack-rsc-runtime";
+var RSC_BROWSER_DECODE_VIRTUAL_ID = "virtual:tanstack-rsc-browser-decode";
+var RSC_SSR_DECODE_VIRTUAL_ID = "virtual:tanstack-rsc-ssr-decode";
+var RSC_ENV_NAME = "rsc";
+var currentDir = path.dirname(fileURLToPath(import.meta.url));
+var entryDir = path.resolve(currentDir, "..", "..", "plugin", "entry");
+var rscEntryPath = path.resolve(entryDir, "rsc.tsx");
+function configureRsc() {
+	return {
+		envName: RSC_ENV_NAME,
+		providerEnvironmentName: RSC_ENV_NAME,
+		ssrResolverStrategy: {
+			type: "vite-rsc-forward",
+			sourceEnvironmentName: RSC_ENV_NAME,
+			sourceEntry: "index",
+			exportName: "getServerFnById"
+		},
+		serializationAdapters: [{
+			client: {
+				module: "@tanstack/react-start/rsc/serialization/client",
+				export: "rscSerializationAdapter",
+				isFactory: true
+			},
+			server: {
+				module: "@tanstack/react-start/rsc/serialization/server",
+				export: "rscSerializationAdapter",
+				isFactory: true
+			}
+		}],
+		compilerTransforms: createRscCssCompilerTransforms({ loadCssExpression: "import.meta.viteRsc.loadCss()" })
 	};
-	const serverEnvironments = [START_ENVIRONMENT_NAMES.server, ...rscConfig ? [rscConfig.envName] : []];
-	if (rscConfig) corePluginOpts = {
-		...corePluginOpts,
-		providerEnvironmentName: rscConfig.providerEnvironmentName,
-		ssrIsProvider: false,
-		ssrResolverStrategy: rscConfig.ssrResolverStrategy,
-		serializationAdapters: rscConfig.serializationAdapters,
-		compilerTransforms: rscConfig.compilerTransforms
-	};
+}
+function reactStartRscVitePlugin() {
 	return [
 		{
-			name: "tanstack-react-start:config",
-			configEnvironment(environmentName, options) {
-				const needsOptimizeDeps = environmentName === START_ENVIRONMENT_NAMES.client || serverEnvironments.includes(environmentName) && options.optimizeDeps?.noDiscovery === false;
-				const reactRouterInNoExternal = Array.isArray(options.resolve?.noExternal) && options.resolve.noExternal.some((pattern) => pattern === "@tanstack/react-router" || typeof pattern === "string" && pattern.includes("react-router"));
+			name: "tanstack-react-start:rsc-ssr-config",
+			config() {
+				return { ssr: { noExternal: true } };
+			}
+		},
+		{
+			name: "tanstack-react-start:rsc-env-config",
+			config() {
 				return {
-					resolve: {
-						dedupe: [
-							"react",
-							"react-dom",
-							"@tanstack/react-start",
-							"@tanstack/react-router"
-						],
-						external: options.resolve?.noExternal === true || !isInsideRouterMonoRepo || reactRouterInNoExternal ? void 0 : ["@tanstack/react-router", "@tanstack/react-router-devtools"]
+					rsc: {
+						serverHandler: false,
+						cssLinkPrecedence: false
 					},
-					optimizeDeps: needsOptimizeDeps ? {
-						exclude: [
+					environments: { [RSC_ENV_NAME]: {
+						consumer: "server",
+						resolve: { noExternal: [
+							"@tanstack/start**",
 							"@tanstack/react-start",
-							"@tanstack/react-router",
-							"@tanstack/react-router-devtools",
-							"@tanstack/start-static-server-functions"
-						],
-						include: [
-							"react",
-							"react/jsx-runtime",
-							"react/jsx-dev-runtime",
-							"react-dom",
-							...environmentName === START_ENVIRONMENT_NAMES.client ? ["react-dom/client"] : ["react-dom/server"],
-							"@tanstack/react-router > @tanstack/react-store",
-							...options.optimizeDeps?.exclude?.find((x) => x === "@tanstack/react-form") ? ["@tanstack/react-form > @tanstack/react-store"] : []
-						]
-					} : void 0
+							"@tanstack/react-start-rsc",
+							"@tanstack/react-router"
+						] },
+						build: { rollupOptions: { input: { index: rscEntryPath } } }
+					} }
 				};
 			}
 		},
-		rscConfig ? reactStartRscVitePlugin() : null,
-		tanStackStartVite(corePluginOpts, options)
+		{
+			name: "tanstack-react-start:rsc-scan-virtual-fallback",
+			apply: "build",
+			applyToEnvironment(env) {
+				return env.name === RSC_ENV_NAME;
+			},
+			load: {
+				filter: { id: /^(virtual:tanstack-rsc-runtime|virtual:vite-rsc\/encryption-key)$/ },
+				handler(id) {
+					if (this.environment.config.build.write !== false) return;
+					if (id === RSC_RUNTIME_VIRTUAL_ID) return `export { renderToReadableStream, createFromReadableStream, createTemporaryReferenceSet, decodeReply, loadServerAction, decodeAction, decodeFormState } from '@vitejs/plugin-rsc/rsc'`;
+					if (id === "virtual:vite-rsc/encryption-key") return `export default () => ''`;
+				}
+			}
+		},
+		createVirtualModule({
+			name: "tanstack-react-start:rsc-runtime-virtual",
+			moduleId: RSC_RUNTIME_VIRTUAL_ID,
+			load() {
+				if (this.environment.name === RSC_ENV_NAME) return `export { renderToReadableStream, createFromReadableStream, createTemporaryReferenceSet, decodeReply, loadServerAction, decodeAction, decodeFormState } from '@vitejs/plugin-rsc/rsc'`;
+				return `
+export function renderToReadableStream() { throw new Error('renderToReadableStream can only be used in RSC environment'); }
+export function createFromReadableStream() { throw new Error('createFromReadableStream can only be used in RSC environment'); }
+export function createTemporaryReferenceSet() { throw new Error('createTemporaryReferenceSet can only be used in RSC environment'); }
+export function decodeReply() { throw new Error('decodeReply can only be used in RSC environment'); }
+export function loadServerAction() { throw new Error('loadServerAction can only be used in RSC environment'); }
+export function decodeAction() { throw new Error('decodeAction can only be used in RSC environment'); }
+export function decodeFormState() { throw new Error('decodeFormState can only be used in RSC environment'); }
+`;
+			}
+		}),
+		createVirtualModule({
+			name: "tanstack-react-start:rsc-browser-decode-virtual",
+			moduleId: RSC_BROWSER_DECODE_VIRTUAL_ID,
+			load() {
+				return `export { createFromReadableStream, createFromFetch } from '@vitejs/plugin-rsc/browser'`;
+			}
+		}),
+		createVirtualModule({
+			name: "tanstack-react-start:rsc-ssr-decode-virtual",
+			moduleId: RSC_SSR_DECODE_VIRTUAL_ID,
+			load() {
+				return `export { setOnClientReference, createFromReadableStream } from '@vitejs/plugin-rsc/ssr'`;
+			}
+		}),
+		createVirtualModule({
+			name: "tanstack-react-start:rsc-hmr-virtual:dev",
+			moduleId: RSC_HMR_VIRTUAL_ID,
+			apply: "serve",
+			applyToEnvironment: isClientEnvironment,
+			load() {
+				return `
+export function setupRscHmr() {
+if (!import.meta.hot) {
+  return
+}
+
+  let __invalidateQueued = false
+
+  function __queueInvalidate() {
+    if (__invalidateQueued) return
+    __invalidateQueued = true
+    queueMicrotask(async () => {
+        __invalidateQueued = false
+        try {
+        const router = window.__TSR_ROUTER__
+        if (!router) {
+            console.warn('[rsc:hmr] No router found on window.__TSR_ROUTER__')
+            return
+        }
+        await router.invalidate()
+        } catch (e) {
+        console.warn('[rsc:hmr] Failed to invalidate router:', e)
+        }
+    })
+  }
+
+  import.meta.hot.on('rsc:update', () => {
+    __queueInvalidate()
+  })
+}
+`;
+			}
+		}),
+		createVirtualModule({
+			name: "tanstack-react-start:rsc-hmr-virtual:prod",
+			moduleId: RSC_HMR_VIRTUAL_ID,
+			applyToEnvironment: isClientEnvironment,
+			apply: "build",
+			load() {
+				return "export function setupRscHmr() {} ";
+			}
+		})
 	];
 }
 //#endregion
-export { tanstackStart };
+export { configureRsc, reactStartRscVitePlugin };
 
 //# sourceMappingURL=vite.js.map
