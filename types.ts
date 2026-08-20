@@ -1,30 +1,27 @@
-import {
-  FieldName,
-  FieldValues,
-  ResolverOptions,
-  ResolverResult,
-} from 'react-hook-form';
-import * as Vest from 'vest';
+import type { SourceMapInput } from '@jridgewell/trace-mapping';
 
-export type ICreateResult<
-  TValues extends FieldValues = FieldValues,
-  TContext = any,
-> = ReturnType<
-  typeof Vest.create<
-    any,
-    any,
-    (values: TValues, names?: FieldName<TValues>[], context?: TContext) => void
-  >
->;
+export type {
+  SourceMapSegment,
+  DecodedSourceMap,
+  EncodedSourceMap,
+} from '@jridgewell/trace-mapping';
 
-export type Resolver = <TValues extends FieldValues, TContext>(
-  schema: ICreateResult<TValues, TContext>,
-  schemaOptions?: never,
-  factoryOptions?: { mode?: 'async' | 'sync'; rawValues?: boolean },
-) => (
-  values: TValues,
-  context: TContext | undefined,
-  options: ResolverOptions<TValues>,
-) => Promise<ResolverResult<TValues>>;
+export type { SourceMapInput };
 
-export type VestErrors = Record<string, string[]>;
+export type LoaderContext = {
+  readonly importer: string;
+  readonly depth: number;
+  source: string;
+  content: string | null | undefined;
+  ignore: boolean | undefined;
+};
+
+export type SourceMapLoader = (
+  file: string,
+  ctx: LoaderContext,
+) => SourceMapInput | null | undefined | void;
+
+export type Options = {
+  excludeContent?: boolean;
+  decodedMappings?: boolean;
+};
